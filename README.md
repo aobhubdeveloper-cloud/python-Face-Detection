@@ -54,15 +54,6 @@ python face-utility.py
 python face-utility.py "C:\Photos" "employee_photo.jpg"
 ```
 
-### VBA Integration
-```vba
-Private Sub CapturePhoto_Click()
-    Dim cmd As String
-    cmd = "python face-utility.py """ & photoPath & """ """ & filename & """"
-    Shell cmd, vbNormalFocus
-End Sub
-```
-
 ## Interface Guide
 
 ### Main Controls
@@ -154,33 +145,101 @@ Check `face_utility.log` for detailed error information and debugging data.
 
 ## MS Access Integration
 
+### VBA Integration
+```vba
+Private Sub CaptureImage_Click()
+
+Dim BIFolder As String
+    Dim fileName As String
+    Dim BIOutName As String
+    Dim txtSubject As String
+    Dim resultPath As String
+    
+    ' Build the folder structure
+    BIFolder = Application.CurrentProject.path & "\Movement Orders\" & _
+        Nz(Me.TextCarrigeComp.value, "") & "\" & _
+        Nz(Me.TextCompany.value, "") & "\" & _
+        Nz(Me.LoadFld.value, "") & " - " & Nz(Me.DecRef.value, "") & "\LivePictures\"
+    
+    ' Ensure the folder exists
+     PathCreator BIFolder
+    
+    ' Build the filename
+    txtSubject = "Dated_" & Format(Me.TextOrderDate.value, "DD-MMMM-YYYY") & "," & CStr(Me.TextBowzer.value) & "," & CStr(Me.LoadFld.value) & _
+        "-" & CStr(Me.DecRef.value) & "," & CStr(Me.TextDrv1.value)
+    
+    fileName = txtSubject & ".jpg"
+    BIOutName = BIFolder & fileName
+
+    ' Call webcam capture form and get result
+    resultPath = CaptureImageAndReturnPath(BIFolder, fileName)
+
+    If resultPath <> "" And Len(Dir(resultPath)) > 0 Then
+       Me.DriverLivePicture.value = resultPath
+        Me.DriverImage.Picture = DriverLivePicture
+        Me.DriverImage.Requery
+        Me.BtnSave.Enabled = True
+       
+    Else
+        MsgBox "Image capture cancelled or failed."
+        Me.BtnSave.Enabled = False
+    End If
+    
+End Sub
+```
+
 ### VBA Code Example
 ```vba
-Private Sub Command398_Click()
-    Dim wsh As Object
-    Dim cmd As String
-    Dim photoPath As String
-    Dim filename As String
+Public Function CaptureImageAndReturnPath(ByVal folderPath As String, ByVal fileName As String) As String
+
+ On Error GoTo ErrorHandler
+
+    Dim projectPath As String
+    Dim pythonPath As String
+    Dim scriptPath As String
+    Dim photoFolder As String
+    Dim photoFileName As String
+    Dim commandLine As String
+    Dim fullPhotoPath As String
+     Dim shellObj As Object
+
+    ' Define values (adjust based on your setup)
+    projectPath = CStr(Application.CurrentProject.path) & "\scripts"
+    pythonPath = projectPath & "\.venv\Scripts\python.exe"
+    scriptPath = projectPath & "\face-uitlity.py"
+    photoFolder = IIf(Right(CStr(folderPath), 1) = "\", Left(CStr(folderPath), Len(CStr(folderPath)) - 1), CStr(folderPath))
+    photoFileName = CStr(fileName)       ' Or use txtImageName.Value
+
+'    fullPhotoPath = photoFolder & photoFileName
     
-    photoPath = Me.txtImagePath.Value
-    filename = Me.txtImageName.Value
-    
-    ' Remove trailing backslash
-    If Right(photoPath, 1) = "\" Then
-        photoPath = Left(photoPath, Len(photoPath) - 1)
+    ' Construct a command that works like your manual version
+    commandLine = "cmd /c """ & _
+        """" & pythonPath & """" & " " & _
+        """" & scriptPath & """" & " " & _
+        """" & photoFolder & """" & " " & _
+        """" & photoFileName & """" & """"
+
+      ' Debug Print to check
+    Debug.Print commandLine
+
+'      Run without showing the command window
+    Set shellObj = CreateObject("WScript.Shell")
+    shellObj.Run commandLine, 0, True   ' 0 = hidden window, False = don't wait
+
+    ' Check if file exists
+    If Dir(fullPhotoPath) <> "" Then
+    DoCmd.Beep
+    MsgBox "Image created successfully!", vbInformation
+    CaptureImageAndReturnPath = NormalizePath(folderPath & "\" & fileName)
+    Else
+        MsgBox "Image not found at: " & fullPhotoPath, vbExclamation
     End If
-    
-    cmd = "python face-utility.py """ & photoPath & """ """ & filename & """"
-    
-    Set wsh = CreateObject("WScript.Shell")
-    wsh.Run cmd, 1, True  ' Wait for completion
-    
-    ' Display captured image
-    If Dir(photoPath & "\" & filename) <> "" Then
-        Me.imgPhoto.Picture = photoPath & "\" & filename
-        MsgBox "Photo captured successfully!"
-    End If
-End Sub
+
+    Exit Function
+
+ErrorHandler:
+    MsgBox "Error: " & Err.Description, vbCritical
+End Function
 ```
 
 ## License
