@@ -32,12 +32,20 @@ class ImageUtilityApp:
         self.from_access = from_access
         self.root.title("Image Utility App")
         self.root.attributes('-topmost', True)  # Keep window on top
-        self.root.geometry("1400x900")  # Set default window size
-        self.root.minsize(1200, 700)   # Set minimum window size
+        self.root.geometry("1000x700")  # Set default window size
+        self.root.minsize(900, 600)   # Set minimum window size
         
         # Auto brightness adjustment settings
         self.last_brightness_check = 0  # Timestamp of last brightness check
         self.auto_brightness_enabled = True  # Enable automatic brightness adjustment
+
+        # Default filter values (replacing removed sliders)
+        self.noise_value = 0
+        self.saturation_value = 1.0
+        self.brightness_value = 0
+        self.contrast_value = 1.0
+        self.sharpness_value = 1.0
+        self.gamma_value = 1.0
 
         # Initialize webcam capture
         self.cap = cv2.VideoCapture(0)  # Open default camera (index 0)
@@ -71,135 +79,134 @@ class ImageUtilityApp:
         self.best_score = -1            # Quality score of the best frame
         self.saved_image_path = ""      # Path of the last saved image
 
-        # GUI Elements
-        # Input frame for textboxes
+
+        # GUI Elements 
+        # Input frame for textboxes later
         self.input_frame = tk.Frame(root)
-        self.input_frame.pack(fill=tk.X, padx=3, pady=3)
-
-        tk.Label(self.input_frame, text="Save Path:", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.path_entry = tk.Entry(self.input_frame, width=50, font=("Arial", 8))
+        tk.Label(self.input_frame, text="File Path:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        self.input_frame.pack(fill=tk.X, padx=5, pady=5)
+        self.path_entry = tk.Entry(self.input_frame, width=50, font=("Arial", 10))
         self.path_entry.insert(0, save_path)
-        self.path_entry.pack(side=tk.LEFT, padx=2)
+        self.path_entry.pack(side=tk.LEFT, padx=5)
         
-        self.browse_button = tk.Button(self.input_frame, text="Browse", font=("Arial", 8), command=self.browse_path)
-        self.browse_button.pack(side=tk.LEFT, padx=2)
+        self.browse_button = tk.Button(self.input_frame, text="Browse", font=("Arial", 10, "bold"), command=self.browse_path)
+        self.browse_button.pack(side=tk.LEFT, padx=5)
 
-        tk.Label(self.input_frame, text="Filename:", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.filename_entry = tk.Entry(self.input_frame, width=30, font=("Arial", 8))
+        tk.Label(self.input_frame, text="Filename:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        self.filename_entry = tk.Entry(self.input_frame, width=30, font=("Arial", 10))
         self.filename_entry.insert(0, filename)
-        self.filename_entry.pack(side=tk.LEFT, padx=2)
+        self.filename_entry.pack(side=tk.LEFT, padx=5)
 
-        tk.Label(self.input_frame, text="Saved Image:", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.saved_path_entry = tk.Entry(self.input_frame, width=25, font=("Arial", 8))
+        # Saved image path on a new line (now also contains theme toggle)
+        saved_frame = tk.Frame(root)
+        saved_frame.pack(fill=tk.X, pady=(2, 0))
+        # Theme toggle moved here and packed to LEFT as first control
+        self.theme_var = tk.BooleanVar(value=True)  # True for dark theme
+        self.theme_button = tk.Checkbutton(
+            saved_frame, 
+            text="Dark Theme", 
+            variable=self.theme_var, 
+            font=("Arial", 10, "bold"),
+            command=self.toggle_theme
+        )
+        self.theme_button.pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(saved_frame, text="Saved Image:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        self.saved_path_entry = tk.Entry(saved_frame, width=50, font=("Arial", 10))
         self.saved_path_entry.config(state='readonly')
-        self.saved_path_entry.pack(side=tk.LEFT, padx=2)
+        self.saved_path_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
         self.saved_path_entry.bind("<Double-Button-1>", self.view_saved_image)
 
-        # Main frame for live feed and previews
-        self.main_frame = tk.Frame(root)
-        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=3, pady=3)
-        
-        # Left side - Live feed
-        self.left_frame = tk.Frame(self.main_frame)
-        self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        self.canvas = tk.Canvas(self.left_frame, width=800, height=600, bg='black')
-        self.canvas.pack(padx=50, pady=0)
-        
-        # Right side - Saved images
-        self.right_frame = tk.Frame(self.main_frame)
-        self.right_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=5)
-        
-        tk.Label(self.right_frame, text="Saved Images (Click to Save)", font=('Arial', 10, 'bold')).pack(pady=5)
-        
-        self.canvas_color = tk.Canvas(self.right_frame, width=200, height=250, bg='white')
-        self.canvas_color.pack(pady=2)
-        tk.Label(self.right_frame, text="Color", font=('Arial', 8)).pack()
-        
-        self.canvas_gray = tk.Canvas(self.right_frame, width=200, height=250, bg='white')
-        self.canvas_gray.pack(pady=2)
-        tk.Label(self.right_frame, text="Grayscale", font=('Arial', 8)).pack()
-
-        self.canvas_color.bind("<Button-1>", lambda e: self.save_image("color"))
-        self.canvas_gray.bind("<Button-1>", lambda e: self.save_image("gray"))
-
-        # Control frame (below live feed) - Responsive layout
+        # Control frame below input - Responsive layout
         self.control_frame = tk.Frame(root)
         self.control_frame.pack(fill=tk.X, padx=3, pady=3)
-        
-        # Row 1 - Buttons
+        # Control elements
         self.button_row = tk.Frame(self.control_frame)
         self.button_row.pack(fill=tk.X, pady=2)
         
-        self.retake_button = tk.Button(self.button_row, text="Retake", font=("Arial", 8), command=self.reset_capture)
-        self.retake_button.pack(side=tk.LEFT, padx=2)
+        self.retake_button = tk.Button(self.button_row, text="RETAKE", font=("Arial", 10, "bold"), command=self.reset_capture)
+        self.retake_button.pack(side=tk.LEFT, padx=5)
         
         self.auto_capture_var = tk.BooleanVar()
-        self.auto_capture_check = tk.Checkbutton(self.button_row, text="Auto-Capture", font=("Arial", 8), variable=self.auto_capture_var, command=self.toggle_auto_capture)
-        self.auto_capture_check.pack(side=tk.LEFT, padx=2)
+        self.auto_capture_check = tk.Checkbutton(self.button_row, text="Auto-Capture", font=("Arial", 10, "bold"), variable=self.auto_capture_var, command=self.toggle_auto_capture)
+        self.auto_capture_check.pack(side=tk.LEFT, padx=5)
         
-        self.auto_enhance_button = tk.Button(self.button_row, text="Auto-Enhance", font=("Arial", 8), command=self.auto_enhance)
-        self.auto_enhance_button.pack(side=tk.LEFT, padx=2)
-        
-        # Row 2 - Sliders
-        self.slider_row1 = tk.Frame(self.control_frame)
-        self.slider_row1.pack(fill=tk.X, pady=2)
-        
-        tk.Label(self.slider_row1, text="Brightness", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.brightness_scale = tk.Scale(self.slider_row1, from_=-100, to=100, orient=tk.HORIZONTAL, length=120, font=("Arial", 7), command=self.apply_filters)
-        self.brightness_scale.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(self.slider_row1, text="Contrast", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.contrast_scale = tk.Scale(self.slider_row1, from_=0.5, to=2.0, resolution=0.1, orient=tk.HORIZONTAL, length=120, font=("Arial", 7), command=self.apply_filters)
-        self.contrast_scale.set(1.0)
-        self.contrast_scale.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(self.slider_row1, text="Sharpness", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.sharpness_scale = tk.Scale(self.slider_row1, from_=0.0, to=2.0, resolution=0.1, orient=tk.HORIZONTAL, length=120, font=("Arial", 7), command=self.apply_filters)
-        self.sharpness_scale.set(1.0)
-        self.sharpness_scale.pack(side=tk.LEFT, padx=2)
-        
-        # Row 3 - More sliders
-        self.slider_row2 = tk.Frame(self.control_frame)
-        self.slider_row2.pack(fill=tk.X, pady=2)
-        
-        tk.Label(self.slider_row2, text="Noise Reduction", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.noise_scale = tk.Scale(self.slider_row2, from_=0, to=5, orient=tk.HORIZONTAL, length=120, font=("Arial", 7), command=self.apply_filters)
-        self.noise_scale.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(self.slider_row2, text="Saturation", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.saturation_scale = tk.Scale(self.slider_row2, from_=0.0, to=2.0, resolution=0.1, orient=tk.HORIZONTAL, length=120, font=("Arial", 7), command=self.apply_filters)
-        self.saturation_scale.set(1.0)
-        self.saturation_scale.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(self.slider_row2, text="Gamma", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.gamma_scale = tk.Scale(self.slider_row2, from_=0.1, to=3.0, resolution=0.1, orient=tk.HORIZONTAL, length=120, font=("Arial", 7), command=self.apply_filters)
-        self.gamma_scale.set(1.0)
-        self.gamma_scale.pack(side=tk.LEFT, padx=2)
-        
-        # Row 4 - Checkboxes and dropdowns
-        self.option_row = tk.Frame(self.control_frame)
-        self.option_row.pack(fill=tk.X, pady=2)
-        
-        self.equalize_var = tk.BooleanVar()
-        self.equalize_check = tk.Checkbutton(self.option_row, text="Hist. Equal.", font=("Arial", 8), variable=self.equalize_var, command=self.apply_filters)
-        self.equalize_check.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(self.option_row, text="Background", font=("Arial", 8)).pack(side=tk.LEFT)
+        tk.Label(self.button_row, text="Background:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
         self.background_var = tk.StringVar(value="White")
-        self.background_menu = ttk.Combobox(self.option_row, textvariable=self.background_var, values=["White", "Light Gray", "Dark Gray", "Light Blue"], width=12, font=("Arial", 8))
+        self.background_menu = ttk.Combobox(self.button_row, textvariable=self.background_var, values=["White", "Light Gray", "Dark Gray", "Light Blue"], width=12, font=("Arial", 9))
         self.background_menu.pack(side=tk.LEFT, padx=2)
         self.background_menu.bind("<<ComboboxSelected>>", self.apply_filters)
         
-        tk.Label(self.option_row, text="Format", font=("Arial", 8)).pack(side=tk.LEFT)
+        tk.Label(self.button_row, text="Format:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
         self.format_var = tk.StringVar(value="JPEG")
-        self.format_menu = ttk.Combobox(self.option_row, textvariable=self.format_var, values=["JPEG", "PNG"], width=8, font=("Arial", 8))
+        self.format_menu = ttk.Combobox(self.button_row, textvariable=self.format_var, values=["JPEG", "PNG"], width=8, font=("Arial", 9))
         self.format_menu.pack(side=tk.LEFT, padx=2)
         
-        tk.Label(self.option_row, text="Compression", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.compression_scale = tk.Scale(self.option_row, from_=0, to=100, orient=tk.HORIZONTAL, length=120, font=("Arial", 7))
+        tk.Label(self.button_row, text="Quality:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
+        self.compression_scale = tk.Scale(self.button_row, from_=0, to=100, orient=tk.HORIZONTAL, length=120, font=("Arial", 9))
         self.compression_scale.set(95)
         self.compression_scale.pack(side=tk.LEFT, padx=2)
+
+        # Make window smaller and disable resize
+        self.root.geometry("850x600")
+        self.root.resizable(False, False)
+
+        
+
+        # File paths at top
+        self.paths_frame = tk.Frame(root)
+        self.paths_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        # Main content area
+        self.main_frame = tk.Frame(root)
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        # Left side: live feed (below controls)
+        self.left_container = tk.Frame(self.main_frame)
+        self.left_container.pack(side=tk.LEFT, padx=10, fill=tk.Y)
+
+        # Label above live feed
+        tk.Label(
+            self.left_container, 
+            text="Live Preview", 
+            font=('Arial', 14, 'bold'),
+            fg='#4CAF50'
+        ).pack(anchor='nw', pady=(0, 5))
+
+        # Live feed canvas (below controls)
+        self.canvas = tk.Canvas(self.left_container, width=480, height=360, bg='black')
+        self.canvas.pack()
+        self.border_colors = ['#4CAF50', '#2196F3', '#9C27B0', '#F44336']  # Green, Blue, Purple, Red
+        self.current_border_color = 0
+        self.update_border_color()
+
+        # Right side: previews (color and gray side by side)
+        self.preview_frame = tk.Frame(self.main_frame)
+        self.preview_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10)
+
+        tk.Label(self.preview_frame, text="Click to Save:", font=('Arial', 12, 'bold')).pack(pady=(0,10))
+
+        # Side-by-side previews
+        self.previews_row = tk.Frame(self.preview_frame)
+        self.previews_row.pack()
+
+        # Color preview (left)
+        self.preview_color = tk.Frame(self.previews_row)
+        self.preview_color.pack(side=tk.LEFT, padx=(0, 10))
+        self.canvas_color = tk.Canvas(self.preview_color, width=250, height=300, bg='white')
+        self.canvas_color.pack()
+        self.canvas_color.configure(highlightthickness=2, highlightbackground='#4CAF50')  # Green border
+        tk.Label(self.preview_color, text="Color", font=('Arial', 10, 'bold')).pack(pady=(5,0))
+
+        # Grayscale preview (right)
+        self.preview_gray = tk.Frame(self.previews_row)
+        self.preview_gray.pack(side=tk.LEFT)
+        self.canvas_gray = tk.Canvas(self.preview_gray, width=250, height=300, bg='white')
+        self.canvas_gray.pack()
+        self.canvas_gray.configure(highlightthickness=2, highlightbackground='#607D8B')  # Blue-gray border
+        tk.Label(self.preview_gray, text="Grayscale", font=('Arial', 10, 'bold')).pack(pady=(5,0))
+
+        self.canvas_color.bind("<Button-1>", lambda e: self.save_image("color"))
+        self.canvas_gray.bind("<Button-1>", lambda e: self.save_image("gray"))
 
         # Bind mouse events for live feed
         self.canvas.bind("<Button-1>", self.select_face)
@@ -212,6 +219,10 @@ class ImageUtilityApp:
 
         self.guidelines_enabled = True
         self.update_feed()
+
+        # Make window wider to fit all controls and previews
+        self.root.geometry("1200x650")
+        self.root.minsize(1100, 600)
 
     def update_feed(self):
         """
@@ -244,23 +255,17 @@ class ImageUtilityApp:
 
         # Apply live filters to feed
         img = frame.copy()
-        noise = self.noise_scale.get()
-        if noise > 0:
-            img = cv2.GaussianBlur(img, (2 * noise + 1, 2 * noise + 1), 0)
-        saturation = self.saturation_scale.get()
-        if saturation != 1.0:
+        if self.noise_value > 0:
+            img = cv2.GaussianBlur(img, (2 * self.noise_value + 1, 2 * self.noise_value + 1), 0)
+        if self.saturation_value != 1.0:
             hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation, 0, 255).astype(np.uint8)
+            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * self.saturation_value, 0, 255).astype(np.uint8)
             img = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-        brightness = self.brightness_scale.get()
-        contrast = self.contrast_scale.get()
-        img = cv2.convertScaleAbs(img, alpha=contrast, beta=brightness)
-        sharpness = self.sharpness_scale.get()
-        kernel = np.array([[-1, -1, -1], [-1, 9 * sharpness, -1], [-1, -1, -1]])
+        img = cv2.convertScaleAbs(img, alpha=self.contrast_value, beta=self.brightness_value)
+        kernel = np.array([[-1, -1, -1], [-1, 9 * self.sharpness_value, -1], [-1, -1, -1]])
         img = cv2.filter2D(img, -1, kernel)
-        gamma = self.gamma_scale.get()
-        if gamma != 1.0:
-            inv_gamma = 1.0 / gamma
+        if self.gamma_value != 1.0:
+            inv_gamma = 1.0 / self.gamma_value
             table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype(np.uint8)
             img = cv2.LUT(img, table)
         if self.background_var.get() != "None":
@@ -319,8 +324,8 @@ class ImageUtilityApp:
         if self.manual_crop and self.crop_start and self.crop_end:
             cv2.rectangle(img, self.crop_start, self.crop_end, (0, 0, 255), 2)
 
-        # Resize frame to fit canvas
-        frame_resized = cv2.resize(img, (800, 600))
+        # Resize frame to fit smaller canvas
+        frame_resized = cv2.resize(img, (640, 480))
         frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
         img_tk = Image.fromarray(frame_rgb)
         img_tk = ImageTk.PhotoImage(img_tk)
@@ -509,7 +514,7 @@ class ImageUtilityApp:
 
     def apply_filters(self, _=None):
         """
-        Apply image processing filters to the cropped face image using fixed enhancement values.
+        Apply basic image processing to the cropped face image.
         Args:
             _: Optional parameter for Tkinter callback compatibility (not used)
         """
@@ -519,47 +524,13 @@ class ImageUtilityApp:
         # Start with a fresh copy of the original image
         img = self.cropped_face.copy()
         
-        # Apply noise reduction
-        if hasattr(self, 'noise_value'):
-            noise = self.noise_value
-            if noise > 0:
-                img = cv2.GaussianBlur(img, (2 * noise + 1, 2 * noise + 1), 0)
-        
-        # Adjust image saturation
-        if hasattr(self, 'saturation_value'):
-            saturation = self.saturation_value
-            if saturation != 1.0:
-                hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-                hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation, 0, 255).astype(np.uint8)
-                img = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-        
-        # Apply brightness and contrast
-        if hasattr(self, 'brightness_value') and hasattr(self, 'contrast_value'):
-            img = cv2.convertScaleAbs(img, alpha=self.contrast_value, beta=self.brightness_value)
-        
-        # Apply sharpening
-        if hasattr(self, 'sharpness_value'):
-            kernel = np.array([[-1, -1, -1], [-1, 9 * self.sharpness_value, -1], [-1, -1, -1]])
-            img = cv2.filter2D(img, -1, kernel)
-        
-        # Apply gamma correction
-        if hasattr(self, 'gamma_value'):
-            gamma = self.gamma_value
-            if gamma != 1.0:
-                inv_gamma = 1.0 / gamma
-                table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype(np.uint8)
-                img = cv2.LUT(img, table)
-        
-        # Apply background
+        # Apply background if selected
         if self.background_var.get() != "None":
             img = self.apply_background(img, self.background_var.get())
+            
         self.color_img = img
-        self.color_img = img
-        # Apply CLAHE enhancement to grayscale
+        # Convert to grayscale
         self.gray_img = cv2.cvtColor(self.color_img, cv2.COLOR_BGR2GRAY)
-        if hasattr(self, 'equalize_enabled') and self.equalize_enabled:
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            self.gray_img = clahe.apply(self.gray_img)
         self.update_previews()
 
     def apply_background(self, img, background_type):
@@ -658,13 +629,6 @@ class ImageUtilityApp:
         self.gray_img = None
         self.canvas_color.delete("all")
         self.canvas_gray.delete("all")
-        self.brightness_scale.set(0)
-        self.contrast_scale.set(1.0)
-        self.sharpness_scale.set(1.0)
-        self.noise_scale.set(0)
-        self.saturation_scale.set(1.0)
-        self.gamma_scale.set(1.0)
-        self.equalize_var.set(False)
         self.background_var.set("White")
         self.format_var.set("JPEG")
         self.compression_scale.set(95)
@@ -692,20 +656,94 @@ class ImageUtilityApp:
             self.best_frame = None
             self.best_score = -1
 
+    def update_border_color(self):
+        """Update the live preview border color for animation effect"""
+        self.canvas.configure(
+            highlightthickness=2,
+            highlightbackground=self.border_colors[self.current_border_color]
+        )
+        self.current_border_color = (self.current_border_color + 1) % len(self.border_colors)
+        self.root.after(1000, self.update_border_color)  # Update every second
+
+    def toggle_theme(self):
+        """Toggle between light and dark theme"""
+        is_dark = self.theme_var.get()
+        bg_color = '#2C2C2C' if is_dark else '#F0F0F0'
+        fg_color = '#FFFFFF' if is_dark else '#000000'
+        input_bg = '#3C3C3C' if is_dark else '#FFFFFF'
+        
+        # Update main window
+        self.root.configure(bg=bg_color)
+        
+        # Update frames
+        for frame in [self.theme_frame, self.main_frame, self.feed_frame, 
+                     self.input_frame, self.control_frame, self.button_row]:
+            frame.configure(bg=bg_color)
+            
+        # Update labels
+        for widget in self.root.winfo_children():
+            if isinstance(widget, tk.Label):
+                widget.configure(bg=bg_color, fg=fg_color)
+            elif isinstance(widget, tk.Frame):
+                for child in widget.winfo_children():
+                    if isinstance(child, tk.Label):
+                        child.configure(bg=bg_color, fg=fg_color)
+                    elif isinstance(child, tk.Entry):
+                        child.configure(bg=input_bg, fg=fg_color)
+                    elif isinstance(child, tk.Button):
+                        child.configure(bg=input_bg, fg=fg_color)
+
     def __del__(self):
         if hasattr(self, 'cap'):
             self.cap.release()
 
 def run_image_utility(save_path, filename, from_access=False):
     """Run the Image Utility App with given save path and filename."""
-    root = tk.Tk()
-    app = ImageUtilityApp(root, save_path, filename, from_access)
-    root.mainloop()
+    try:
+        # Additional cleanup for path issues from MS Access
+        if from_access:
+            # Remove trailing backslashes
+            save_path = save_path.rstrip('\\')
+            
+            # Ensure save_path doesn't contain the filename
+            if filename in save_path:
+                save_path = save_path.replace(filename, '').rstrip('\\/ "')
+            
+            # Verify the directory exists or can be created
+            if not os.path.exists(save_path):
+                os.makedirs(save_path, exist_ok=True)
+        
+        root = tk.Tk()
+        app = ImageUtilityApp(root, save_path, filename, from_access)
+        root.mainloop()
+        
+        # Return the saved image path for MS Access
+        if hasattr(app, 'saved_image_path') and app.saved_image_path:
+            return app.saved_image_path
+        return ""
+        
+    except Exception as e:
+        print(f"Error in run_image_utility: {str(e)}")
+        return ""
 
 if __name__ == "__main__":
     if len(sys.argv) == 3:
-        save_path = sys.argv[1]
-        filename = sys.argv[2]
+        save_path = sys.argv[1].strip('"')  # Remove quotes
+        filename = sys.argv[2].strip('"')   # Remove quotes
+        
+        # Remove trailing backslashes from save_path
+        save_path = save_path.rstrip('\\')
+        
+        # Fix the path issue: if filename appears in save_path, remove it
+        if filename in save_path:
+            # Find the last occurrence of filename in save_path and remove it
+            last_index = save_path.rfind(filename)
+            if last_index != -1:
+                save_path = save_path[:last_index].rstrip('\\/ "')
+        
+        print(f"Processed save_path: {save_path}")
+        print(f"Processed filename: {filename}")
+        
         run_image_utility(save_path, filename, from_access=True)
     else:
         print("Usage: python script.py <save_path> <filename>")

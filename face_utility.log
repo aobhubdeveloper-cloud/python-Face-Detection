@@ -1,0 +1,8 @@
+2025-07-30 17:24:56,933 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-30 17:24:56,933 - INFO - OpenCV version: 4.12.0
+2025-07-30 17:24:56,933 - INFO - NumPy version: 2.2.6
+2025-07-30 17:24:56,933 - INFO - PIL version: 11.3.0
+2025-07-30 17:24:56,933 - INFO - Application starting...
+2025-07-30 17:24:56,933 - INFO - Command line arguments: ['d:\\Dropbox\\HE MANAGEMENT SYSTEM\\scripts\\face-uitlity.py', 'd:\\Dropbox\\HE MANAGEMENT SYSTEM\\scripts\\photos', 'test_photo.jpg']
+2025-07-30 17:24:56,933 - INFO - Running with save_path: d:\Dropbox\HE MANAGEMENT SYSTEM\scripts\photos, filename: test_photo.jpg
+2025-07-30 17:24:56,934 - INFO - Running as script. Base path: d:\Dropbox\HE MANAGEMENT SYSTEM\scripts

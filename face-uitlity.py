@@ -9,6 +9,27 @@ import os  # Operating system interface
 import time  # Time access and conversions
 import pyperclip  # Cross-platform clipboard operations
 import subprocess  # Subprocess management
+import logging  # For error tracking
+import traceback  # For detailed error information
+
+# Set up logging
+log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'face_utility.log')
+logging.basicConfig(
+    filename=log_path,
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+# Log system information
+logging.info(f"Python version: {sys.version}")
+logging.info(f"OpenCV version: {cv2.__version__}")
+logging.info(f"NumPy version: {np.__version__}")
+logging.info(f"PIL version: {Image.__version__}")
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    """Global exception handler"""
+    logging.error("Uncaught exception:", exc_info=(exc_type, exc_value, exc_traceback))
+    messagebox.showerror("Error", f"An error occurred: {str(exc_value)}\nCheck face_utility.log for details")
 
 class ImageUtilityApp:
     """
@@ -56,8 +77,18 @@ class ImageUtilityApp:
 
         # Load Haar Cascade Classifiers for face and eye detection
         # These XML files contain pre-trained models for detecting faces and eyes
-        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        self.eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            application_path = sys._MEIPASS
+            face_cascade_path = os.path.join(application_path, 'haarcascades', 'haarcascade_frontalface_default.xml')
+            eye_cascade_path = os.path.join(application_path, 'haarcascades', 'haarcascade_eye.xml')
+        else:
+            # If running as script
+            face_cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            eye_cascade_path = cv2.data.haarcascades + 'haarcascade_eye.xml'
+            
+        self.face_cascade = cv2.CascadeClassifier(face_cascade_path)
+        self.eye_cascade = cv2.CascadeClassifier(eye_cascade_path)
         if self.face_cascade.empty() or self.eye_cascade.empty():
             messagebox.showerror("Error", "Failed to load detection models")
             self.root.quit()
@@ -78,33 +109,12 @@ class ImageUtilityApp:
         self.best_frame = None          # Best frame captured during auto-capture
         self.best_score = -1            # Quality score of the best frame
         self.saved_image_path = ""      # Path of the last saved image
-        
-        # Main content area with live feed at top
-        self.main_frame = tk.Frame(root)
-        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # Live feed section with title
-        self.feed_frame = tk.Frame(self.main_frame)
-        self.feed_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        tk.Label(
-            self.feed_frame, 
-            text="Live Preview", 
-            font=('Arial', 14, 'bold'),
-            fg='#4CAF50'
-        ).pack(pady=(0, 5))
-        
-        # Live feed container
-        # self.canvas = tk.Canvas(self.feed_frame, width=480, height=360, bg='black')
-        # self.canvas.pack()
-        # self.border_colors = ['#4CAF50', '#2196F3', '#9C27B0', '#F44336']  # Green, Blue, Purple, Red
-        # self.current_border_color = 0
-        # self.update_border_color()
-        
+
+
         # GUI Elements 
         # Input frame for textboxes later
         self.input_frame = tk.Frame(root)
-        tk.Label(self.input_frame, text="Filename:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        tk.Label(self.input_frame, text="File Path:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
         self.input_frame.pack(fill=tk.X, padx=5, pady=5)
         self.path_entry = tk.Entry(self.input_frame, width=50, font=("Arial", 10))
         self.path_entry.insert(0, save_path)
@@ -118,59 +128,38 @@ class ImageUtilityApp:
         self.filename_entry.insert(0, filename)
         self.filename_entry.pack(side=tk.LEFT, padx=5)
 
-        
-        # Control frame at bottom
+        # Saved image path on a new line (now also contains theme toggle)
+        saved_frame = tk.Frame(root)
+        saved_frame.pack(fill=tk.X, pady=(2, 0))
+        # Theme toggle moved here and packed to LEFT as first control
+        self.theme_var = tk.BooleanVar(value=True)  # True for dark theme
+        self.theme_button = tk.Checkbutton(
+            saved_frame, 
+            text="Dark Theme", 
+            variable=self.theme_var, 
+            font=("Arial", 10, "bold"),
+            command=self.toggle_theme
+        )
+        self.theme_button.pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(saved_frame, text="Saved Image:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        self.saved_path_entry = tk.Entry(saved_frame, width=50, font=("Arial", 10))
+        self.saved_path_entry.config(state='readonly')
+        self.saved_path_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+        self.saved_path_entry.bind("<Double-Button-1>", self.view_saved_image)
+
+        # Control frame below input - Responsive layout
         self.control_frame = tk.Frame(root)
-        self.control_frame.pack(fill=tk.X, padx=3, pady=3, side=tk.BOTTOM)
-        
+        self.control_frame.pack(fill=tk.X, padx=3, pady=3)
         # Control elements
         self.button_row = tk.Frame(self.control_frame)
         self.button_row.pack(fill=tk.X, pady=2)
         
-        # Left side controls
-        left_controls = tk.Frame(self.button_row)
-        left_controls.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        self.retake_button = tk.Button(left_controls, text="RETAKE", font=("Arial", 10, "bold"), command=self.reset_capture)
+        self.retake_button = tk.Button(self.button_row, text="RETAKE", font=("Arial", 10, "bold"), command=self.reset_capture)
         self.retake_button.pack(side=tk.LEFT, padx=5)
         
-        tk.Label(left_controls, text="Background:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
-        self.background_var = tk.StringVar(value="White")
-        self.background_menu = ttk.Combobox(left_controls, textvariable=self.background_var, 
-                                          values=["White", "Light Gray", "Dark Gray", "Light Blue"], 
-                                          width=12, font=("Arial", 9))
-        self.background_menu.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(left_controls, text="Format:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
-        self.format_var = tk.StringVar(value="JPEG")
-        self.format_menu = ttk.Combobox(left_controls, textvariable=self.format_var, 
-                                      values=["JPEG", "PNG"], width=8, font=("Arial", 9))
-        self.format_menu.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(left_controls, text="Quality:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
-        self.compression_scale = tk.Scale(left_controls, from_=0, to=100, orient=tk.HORIZONTAL, 
-                                        length=120, font=("Arial", 9))
-        self.compression_scale.set(95)
-        self.compression_scale.pack(side=tk.LEFT, padx=2)
-
-        # Save path and saved image at the bottom
-        path_frame = tk.Frame(self.control_frame)
-        path_frame.pack(fill=tk.X, pady=(5, 0))
-        
-        save_path_frame = tk.Frame(path_frame)
-        save_path_frame.pack(fill=tk.X, pady=2)
-        tk.Label(save_path_frame, text="Save Path:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0,5))
-        self.path_entry = tk.Entry(save_path_frame, width=50, font=("Arial", 10))
-        self.path_entry.insert(0, save_path)
-        self.path_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        
-        saved_frame = tk.Frame(path_frame)
-        saved_frame.pack(fill=tk.X, pady=2)
-        tk.Label(saved_frame, text="Saved Image:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0,5))
-        self.saved_path_entry = tk.Entry(saved_frame, width=70, font=("Arial", 10))
-        self.saved_path_entry.config(state='readonly')
-        self.saved_path_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        self.saved_path_entry.bind("<Double-Button-1>", self.view_saved_image)
+        self.auto_capture_var = tk.BooleanVar()
+        self.auto_capture_check = tk.Checkbutton(self.button_row, text="Auto-Capture", font=("Arial", 10, "bold"), variable=self.auto_capture_var, command=self.toggle_auto_capture)
+        self.auto_capture_check.pack(side=tk.LEFT, padx=5)
         
         tk.Label(self.button_row, text="Background:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
         self.background_var = tk.StringVar(value="White")
@@ -188,57 +177,61 @@ class ImageUtilityApp:
         self.compression_scale.set(95)
         self.compression_scale.pack(side=tk.LEFT, padx=2)
 
-        # Theme toggle at top
-        self.theme_frame = tk.Frame(root)
-        self.theme_frame.pack(fill=tk.X, padx=5, pady=2)
-        self.theme_var = tk.BooleanVar(value=True)  # True for dark theme
-        self.theme_button = tk.Checkbutton(
-            self.theme_frame, 
-            text="Dark Theme", 
-            variable=self.theme_var, 
-            font=("Arial", 10, "bold"),
-            command=self.toggle_theme
-        )
-        self.theme_button.pack(side=tk.RIGHT)
+        # Make window smaller and disable resize
+        self.root.geometry("850x600")
+        self.root.resizable(False, False)
+
+        
 
         # File paths at top
         self.paths_frame = tk.Frame(root)
         self.paths_frame.pack(fill=tk.X, padx=5, pady=5)
-        
-        # Filename row
-        filename_row = tk.Frame(self.paths_frame)
-        filename_row.pack(fill=tk.X, pady=(0,5))
-        tk.Label(filename_row, text="Filename:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0,5))
-        self.filename_entry = tk.Entry(filename_row, width=30, font=("Arial", 10))
-        self.filename_entry.insert(0, filename)
-        self.filename_entry.pack(side=tk.LEFT, padx=5)
 
         # Main content area
         self.main_frame = tk.Frame(root)
         self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # Live feed container
-        self.canvas = tk.Canvas(self.main_frame, width=480, height=360, bg='black')
-        self.canvas.pack(pady=5)
-        
-        # Preview Images container
+
+        # Left side: live feed (below controls)
+        self.left_container = tk.Frame(self.main_frame)
+        self.left_container.pack(side=tk.LEFT, padx=10, fill=tk.Y)
+
+        # Label above live feed
+        tk.Label(
+            self.left_container, 
+            text="Live Preview", 
+            font=('Arial', 14, 'bold'),
+            fg='#4CAF50'
+        ).pack(anchor='nw', pady=(0, 5))
+
+        # Live feed canvas (below controls)
+        self.canvas = tk.Canvas(self.left_container, width=480, height=360, bg='black')
+        self.canvas.pack()
+        self.border_colors = ['#4CAF50', '#2196F3', '#9C27B0', '#F44336']  # Green, Blue, Purple, Red
+        self.current_border_color = 0
+        self.update_border_color()
+
+        # Right side: previews (color and gray side by side)
         self.preview_frame = tk.Frame(self.main_frame)
-        self.preview_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-        
+        self.preview_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10)
+
         tk.Label(self.preview_frame, text="Click to Save:", font=('Arial', 12, 'bold')).pack(pady=(0,10))
-        
-        # Color preview
-        self.preview_color = tk.Frame(self.preview_frame)
-        self.preview_color.pack(pady=5)
-        self.canvas_color = tk.Canvas(self.preview_color, width=200, height=250, bg='white')
+
+        # Side-by-side previews
+        self.previews_row = tk.Frame(self.preview_frame)
+        self.previews_row.pack()
+
+        # Color preview (left)
+        self.preview_color = tk.Frame(self.previews_row)
+        self.preview_color.pack(side=tk.LEFT, padx=(0, 10))
+        self.canvas_color = tk.Canvas(self.preview_color, width=250, height=300, bg='white')
         self.canvas_color.pack()
         self.canvas_color.configure(highlightthickness=2, highlightbackground='#4CAF50')  # Green border
         tk.Label(self.preview_color, text="Color", font=('Arial', 10, 'bold')).pack(pady=(5,0))
-        
-        # Grayscale preview
-        self.preview_gray = tk.Frame(self.preview_frame)
-        self.preview_gray.pack(pady=5)
-        self.canvas_gray = tk.Canvas(self.preview_gray, width=200, height=250, bg='white')
+
+        # Grayscale preview (right)
+        self.preview_gray = tk.Frame(self.previews_row)
+        self.preview_gray.pack(side=tk.LEFT)
+        self.canvas_gray = tk.Canvas(self.preview_gray, width=250, height=300, bg='white')
         self.canvas_gray.pack()
         self.canvas_gray.configure(highlightthickness=2, highlightbackground='#607D8B')  # Blue-gray border
         tk.Label(self.preview_gray, text="Grayscale", font=('Arial', 10, 'bold')).pack(pady=(5,0))
@@ -257,6 +250,10 @@ class ImageUtilityApp:
 
         self.guidelines_enabled = True
         self.update_feed()
+
+        # Make window wider to fit all controls and previews
+        self.root.geometry("1200x650")
+        self.root.minsize(1100, 600)
 
     def update_feed(self):
         """
@@ -328,10 +325,17 @@ class ImageUtilityApp:
         
         self.last_face_count = len(faces)
 
-        # Calculate dimensions but don't draw the guideline box
+        # Draw guideline box
         h, w = img.shape[:2]
         head_width = int(w * 0.8)
         head_height = int(h * 0.8)
+        guide_x1 = (w - head_width) // 2
+        guide_y1 = (h - head_height) // 2
+        guide_x2 = guide_x1 + head_width
+        guide_y2 = guide_y1 + head_height
+        cv2.rectangle(img, (guide_x1, guide_y1), (guide_x2, guide_y2), (255, 255, 0), 1)
+        cv2.putText(img, "Place face here", (guide_x1, guide_y1 - 10), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
 
         for (x, y, w, h) in faces:
             center_x = x + w // 2
@@ -726,15 +730,79 @@ class ImageUtilityApp:
 
 def run_image_utility(save_path, filename, from_access=False):
     """Run the Image Utility App with given save path and filename."""
-    root = tk.Tk()
-    app = ImageUtilityApp(root, save_path, filename, from_access)
-    root.mainloop()
+    try:
+        # Additional cleanup for path issues from MS Access
+        if from_access:
+            # Remove trailing backslashes
+            save_path = save_path.rstrip('\\')
+            
+            # Ensure save_path doesn't contain the filename
+            if filename in save_path:
+                save_path = save_path.replace(filename, '').rstrip('\\/ "')
+            
+            # Verify the directory exists or can be created
+            if not os.path.exists(save_path):
+                os.makedirs(save_path, exist_ok=True)
+        
+        root = tk.Tk()
+        app = ImageUtilityApp(root, save_path, filename, from_access)
+        root.mainloop()
+        
+        # Return the full path of the saved image for MS Access
+        if app.saved_image_path and os.path.exists(app.saved_image_path):
+            return app.saved_image_path
+        return ""
+    except Exception as e:
+        logging.error(f"Error in run_image_utility: {str(e)}", exc_info=True)
+        messagebox.showerror("Error", f"Failed to run application: {str(e)}")
+        return ""
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3:
-        save_path = sys.argv[1]
-        filename = sys.argv[2]
-        run_image_utility(save_path, filename, from_access=True)
-    else:
-        print("Usage: python script.py <save_path> <filename>")
+    try:
+        # Set up global exception handler
+        sys.excepthook = handle_exception
+        
+        logging.info("Application starting...")
+        logging.info(f"Command line arguments: {sys.argv}")
+        
+        if len(sys.argv) == 3:
+            save_path = sys.argv[1].strip('"')  # Remove any surrounding quotes
+            filename = sys.argv[2].strip('"')   # Remove any surrounding quotes
+            logging.info(f"Running with save_path: {save_path}, filename: {filename}")
+            
+            # Remove trailing backslashes from save_path
+            save_path = save_path.rstrip('\\')
+            
+            # Clean up the save_path by removing any file name that might have been appended
+            if filename in save_path:
+                save_path = save_path.replace(filename, '').rstrip('\\/" ')
+            
+            # Verify paths and create directory if needed
+            if not os.path.exists(save_path):
+                try:
+                    os.makedirs(save_path)
+                    logging.info(f"Created directory: {save_path}")
+                except Exception as e:
+                    logging.error(f"Failed to create directory: {save_path}")
+                    logging.error(str(e))
+                    messagebox.showerror("Error", f"Failed to create save directory: {save_path}")
+                    sys.exit(1)
+            
+            # Get cascade file paths
+            if getattr(sys, 'frozen', False):
+                base_path = sys._MEIPASS
+                logging.info(f"Running as frozen application. Base path: {base_path}")
+            else:
+                base_path = os.path.dirname(os.path.abspath(__file__))
+                logging.info(f"Running as script. Base path: {base_path}")
+                
+            run_image_utility(save_path, filename, from_access=True)
+        else:
+            logging.error("Invalid number of arguments")
+            print("Usage: FacePhotoUtility.exe <save_path> <filename>")
+            sys.exit(1)
+            
+    except Exception as e:
+        logging.critical("Fatal error:", exc_info=True)
+        messagebox.showerror("Critical Error", f"Application failed to start: {str(e)}\nCheck face_utility.log for details")
         sys.exit(1)
