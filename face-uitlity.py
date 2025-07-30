@@ -473,6 +473,7 @@ class ImageUtilityApp:
         3. Ensures the crop area stays within frame bounds
         4. Maintains aspect ratio of the final crop
         5. Resizes to standard dimensions
+        6. Provides audio feedback on capture
         """
         # Calculate frame aspect ratio for consistent output
         frame_aspect = frame.shape[1] / frame.shape[0]
@@ -504,6 +505,9 @@ class ImageUtilityApp:
         self.cropped_face = frame[y1:y2, x1:x2]
         self.cropped_face = cv2.resize(self.cropped_face, (200, 250))
         self.apply_filters()
+        
+        # Play beep sound on capture
+        self.root.bell()
 
     def start_manual_crop(self, event):
         self.manual_crop = True
