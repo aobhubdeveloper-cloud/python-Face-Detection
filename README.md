@@ -9,6 +9,7 @@ A comprehensive Python-based face photo capture application with real-time face 
 - **Auto-Capture Mode**: Automatically captures the best quality photo when face is detected
 - **Manual Capture**: Click-to-capture functionality for manual control
 - **Dual Output**: Saves both color and grayscale versions simultaneously
+- **Audio Feedback**: System beep notifications for capture events and alerts
 
 ### 📸 Image Processing
 - **Background Replacement**: White, Light Gray, Dark Gray, Light Blue options
@@ -21,6 +22,7 @@ A comprehensive Python-based face photo capture application with real-time face 
 - **Dual Preview**: Side-by-side color and grayscale previews
 - **Dark/Light Theme**: Toggle between interface themes
 - **Responsive Layout**: Optimized for different screen sizes
+- **Audio Notifications**: Beep sounds for successful captures and system alerts
 
 ### 🔗 Integration
 - **MS Access Compatible**: Seamless integration with database applications
@@ -73,15 +75,16 @@ End Sub
 ### Capture Process
 1. **Position Face**: Align face within the yellow guideline box
 2. **Wait for Detection**: Green rectangle appears around detected face
-3. **Auto-Capture**: Photo automatically taken after 3-second countdown
-4. **Manual Capture**: Click on detected face to capture immediately
-5. **Save**: Click on color or grayscale preview to save
+3. **Auto-Capture**: Photo automatically taken after 3-second countdown with beep confirmation
+4. **Manual Capture**: Click on detected face to capture immediately with beep feedback
+5. **Save**: Click on color or grayscale preview to save with success beep
 
 ### Settings
 - **Background**: Choose background color for photos
 - **Format**: Select JPEG or PNG output format
 - **Quality**: Adjust compression level (0-100)
 - **Theme**: Toggle between dark and light interface
+- **Audio Feedback**: System beep notifications enabled by default
 
 ## Technical Specifications
 
@@ -126,6 +129,10 @@ faces = self.face_cascade.detectMultiScale(
 
 # Auto-capture timing
 countdown = 3 - int(elapsed)  # 3-second countdown
+
+# Audio feedback
+import winsound  # For Windows beep sounds
+winsound.Beep(800, 200)  # Frequency 800Hz, Duration 200ms
 ```
 
 ## Troubleshooting
