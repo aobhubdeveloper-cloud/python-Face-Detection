@@ -30,6 +30,9 @@ A comprehensive Python-based face photo capture application with real-time face 
 - **Visual Feedback**: Countdown timer and success messages
 - **Animated Borders**: Color-changing borders for visual appeal
 
+![Python Application Interface](./Python%20UI.png)
+*Python application interface showing live webcam feed and dual preview panels*
+
 ### 🔗 Integration
 - **MS Access Compatible**: Seamless integration with database applications
 - **Command Line Support**: Can be launched with parameters
@@ -37,17 +40,112 @@ A comprehensive Python-based face photo capture application with real-time face 
 - **Clipboard Integration**: Automatic path copying to clipboard
 - **Directory Auto-Creation**: Automatically creates save directories if they don't exist
 
+### 🗃️ MS Access Database Form Features
+- **Auto-Installation Validation**: Checks Python, libraries, and ActiveX controls before form load
+- **AccessImagine Integration**: Uses AccessImagine ActiveX control for seamless image display
+- **Dynamic File Path Generation**: Automatically builds folder structure based on form field values
+- **Live Image Display**: Real-time preview of captured photos in Access forms
+- **Database Field Integration**: Direct binding to image fields in Access tables
+- **Automated Database Storage**: Automatically stores file path and filename in database fields
+- **Preview Last Saved Images**: View recently captured images with metadata
+- **Automated Workflow**: One-click capture, save, and database update
+- **Path Validation**: Ensures directory structure exists before capture
+- **Error Handling**: Comprehensive VBA error management with user feedback
+- **Batch Processing**: Support for multiple image captures in sequence
+- **Field-Based Naming**: Intelligent filename generation from form data
+- **Pre-Flight Checks**: Validates all dependencies before allowing image capture
+- **Transaction Management**: Ensures database consistency during image capture and storage
+- **Cross-Form Integration**: Reference forms can pass file paths and names between forms
+
+![Sample MS Access Form](./Sample%20Form.png)
+*Sample MS Access form showing integrated face capture functionality*
+
+### 💾 MS Access Database Sample File
+The system includes a complete MS Access database sample (`Live Webcam Feed.accdb`) demonstrating full integration:
+
+#### Main Form
+- **Purpose**: Central navigation and system overview
+- **Features**: Access to all capture and preview functions
+- **Validation**: Pre-flight system checks before opening sub-forms
+- **Navigation**: Quick access to capture and preview forms
+
+#### Live Face Capture Form
+- **Purpose**: Direct integration with Python face capture utility
+- **Features**: Real-time image capture with database storage
+- **Integration**: Calls Python script with dynamic file paths
+- **Display**: AccessImagine control for immediate image preview
+- **Storage**: Automatic database field population
+
+#### Reference Form
+- **Purpose**: Pass file paths and names between forms
+- **Features**: Cross-form data sharing and validation
+- **Integration**: Seamless data transfer for batch operations
+- **Validation**: Path and filename verification before processing
+
+#### Stored Files Preview Form
+- **Purpose**: View and manage previously captured images
+- **Features**: 
+  - **ID Display**: Unique identifier for each captured image
+  - **File Name**: Original filename with metadata
+  - **File Path**: Complete path to stored image file
+  - **Timestamp**: Capture date and time information
+  - **Image Preview**: Thumbnail display of stored images
+  - **File Management**: Options to view, delete, or export images
+  - **Search & Filter**: Find images by date, name, or path
+  - **Batch Operations**: Select multiple images for bulk actions
+
 ## Installation
 
-### Prerequisites
+### Auto-Installation Scripts
+The system includes automated installation scripts for easy setup:
+
+#### Python Environment Setup
+```bash
+# Run the automated Python setup
+setup_environment.py
+
+# Or use the batch file
+install_python.bat
+```
+
+#### AccessImagine ActiveX Control
+```bash
+# Install AccessImagine ActiveX control for MS Access
+install_accessimagine.bat
+```
+
+### Manual Prerequisites
 ```bash
 pip install opencv-python numpy pillow pyperclip
 ```
 
 ### Files Required
 - `face.py` - Main application
+- `Live Webcam Feed.accdb` - MS Access database sample with integrated forms
+- `setup_environment.py` - Auto-installer for Python dependencies
+- `install_python.bat` - Batch installer for Python environment
+- `install_accessimagine.bat` - AccessImagine ActiveX installer
 - Haar cascade XML files (included with OpenCV)
 - Python virtual environment (recommended)
+
+### MS Access Setup Requirements
+
+#### AccessImagine ActiveX Control
+Required for displaying images in MS Access forms:
+- **Component**: AccessImagine ActiveX Control
+- **Purpose**: Real-time image display and database integration
+- **Installation**: Run `install_accessimagine.bat` as Administrator
+- **Registration**: Automatically registers the control in Windows Registry
+- **Validation**: Form validates control availability before opening
+
+#### Form Validation Process
+Before opening any form with image capture functionality:
+1. **Python Installation Check**: Validates Python is installed and accessible
+2. **Required Libraries Check**: Verifies opencv-python, numpy, pillow, pyperclip
+3. **AccessImagine Control Check**: Confirms ActiveX control is registered
+4. **Webcam Availability Check**: Tests camera access permissions
+5. **Script Path Validation**: Ensures face.py exists in scripts folder
+6. **Error Reporting**: Displays specific missing components with installation guidance
 
 ## Usage
 
@@ -263,11 +361,105 @@ Check `face_utility.log` for detailed error information with:
 
 ## MS Access Integration
 
-### VBA Integration with Dynamic File Paths based on Selection of Values
+### Pre-Form Validation Process
+Before any form with image capture opens, the system performs comprehensive validation:
+
+```vba
+' Form Load Event - Validation Example
+Private Sub Form_Load()
+    If Not ValidateSystemRequirements() Then
+        MsgBox "System requirements not met. Please run setup scripts.", vbCritical
+        DoCmd.Close acForm, Me.Name
+        Exit Sub
+    End If
+End Sub
+
+Private Function ValidateSystemRequirements() As Boolean
+    ' Check Python installation
+    If Not IsPythonInstalled() Then
+        MsgBox "Python not found. Run install_python.bat", vbCritical
+        Return False
+    End If
+    
+    ' Check required Python libraries
+    If Not ArePythonLibrariesInstalled() Then
+        MsgBox "Python libraries missing. Run setup_environment.py", vbCritical
+        Return False
+    End If
+    
+    ' Check AccessImagine ActiveX control
+    If Not IsAccessImagineInstalled() Then
+        MsgBox "AccessImagine control missing. Run install_accessimagine.bat as Administrator", vbCritical
+        Return False
+    End If
+    
+    ' Check webcam availability
+    If Not IsWebcamAvailable() Then
+        MsgBox "Webcam not accessible. Check permissions and connections.", vbExclamation
+        Return False
+    End If
+    
+    Return True
+End Function
+```
+
+### AccessImagine ActiveX Control Setup
+The AccessImagine control enables seamless image display in MS Access:
+
+```vba
+' Initialize AccessImagine control on form
+Private Sub Form_Open(Cancel As Integer)
+    ' Set AccessImagine properties
+    Me.ImageControl.BorderStyle = 1
+    Me.ImageControl.SizeMode = 3  ' Zoom to fit
+    Me.ImageControl.BackColor = RGB(255, 255, 255)
+End Sub
+
+' Update image display after capture
+Private Sub UpdateImageDisplay(imagePath As String)
+    If Dir(imagePath) <> "" Then
+        Me.ImageControl.Picture = imagePath
+        Me.ImageControl.Requery
+    End If
+End Sub
+```
+
+### Database Storage Integration
+The system automatically stores captured image information in database fields:
+
+```vba
+' Database field mapping for image storage
+Private Sub StoreImageToDatabase(imagePath As String, fileName As String)
+    On Error GoTo ErrorHandler
+    
+    ' Store full file path in database field
+    Me.ImageFilePath.Value = imagePath
+    
+    ' Store just the filename in separate field
+    Me.ImageFileName.Value = fileName
+    
+    ' Store capture timestamp
+    Me.ImageCaptureDate.Value = Now()
+    
+    ' Store file size for reference
+    Me.ImageFileSize.Value = FileLen(imagePath)
+    
+    ' Update the record
+    Me.Dirty = False
+    
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "Error storing image to database: " & Err.Description, vbCritical
+End Sub
+```
+
+### VBA Integration with Dynamic File Paths and Database Storage
 ```vba
 Private Sub cmdImage_Click()
-
-Dim BIFolder As String
+    On Error GoTo ErrorHandler
+    
+    Dim BIFolder As String
     Dim fileName As String
     Dim BIOutName As String
     Dim txtSubject As String
@@ -280,7 +472,7 @@ Dim BIFolder As String
         Nz(Me.LoadFld.value, "") & " - " & Nz(Me.DecRef.value, "") & "\LivePictures\"
     
     ' Ensure the folder exists
-     PathCreator BIFolder
+    PathCreator BIFolder
     
     ' Build the filename
     txtSubject = "Dated_" & Format(Me.TextOrderDate.value, "DD-MMMM-YYYY") & "," & CStr(Me.TextBowzer.value) & "," & CStr(Me.LoadFld.value) & _
@@ -293,17 +485,39 @@ Dim BIFolder As String
     resultPath = CaptureImageAndReturnPath(BIFolder, fileName)
 
     If resultPath <> "" And Len(Dir(resultPath)) > 0 Then
-       Me.DriverLivePicture.value = resultPath
+        ' Update image display
+        Me.DriverLivePicture.value = resultPath
         Me.DriverImage.Picture = DriverLivePicture
         Me.DriverImage.Requery
+        
+        ' Store image information to database
+        Call StoreImageToDatabase(resultPath, fileName)
+        
+        ' Enable save button
         Me.BtnSave.Enabled = True
-       
+        
+        MsgBox "Image captured and stored successfully!", vbInformation
     Else
-        MsgBox "Image capture cancelled or failed."
+        MsgBox "Image capture cancelled or failed.", vbExclamation
         Me.BtnSave.Enabled = False
     End If
     
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "Error in image capture process: " & Err.Description, vbCritical
 End Sub
+```
+
+### Database Field Requirements
+Ensure your Access table includes these fields for image storage:
+
+```sql
+-- Required database fields for image storage
+ImageFilePath     TEXT(255)    -- Full path to image file
+ImageFileName     TEXT(100)    -- Just the filename
+ImageCaptureDate  DATETIME     -- When image was captured
+ImageFileSize     LONG         -- File size in bytes (optional)
 ```
 
 ### Complete VBA Function (Production Ready)
