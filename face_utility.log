@@ -34,3 +34,83 @@ NameError: name 'from_access' is not defined
 2025-07-31 12:31:45,132 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
 2025-07-31 12:31:45,132 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
 2025-07-31 12:31:45,132 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:42:58,458 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:42:58,458 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:42:58,458 - INFO - NumPy version: 2.2.6
+2025-07-31 12:42:58,458 - INFO - PIL version: 11.3.0
+2025-07-31 12:42:58,458 - INFO - Application starting...
+2025-07-31 12:42:58,458 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:42:58,458 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:42:58,458 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:43:29,411 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:43:29,411 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:43:29,412 - INFO - NumPy version: 2.2.6
+2025-07-31 12:43:29,412 - INFO - PIL version: 11.3.0
+2025-07-31 12:43:29,412 - INFO - Application starting...
+2025-07-31 12:43:29,412 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:43:29,412 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:43:29,412 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:47:56,258 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:47:56,258 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:47:56,258 - INFO - NumPy version: 2.2.6
+2025-07-31 12:47:56,258 - INFO - PIL version: 11.3.0
+2025-07-31 12:47:56,258 - INFO - Application starting...
+2025-07-31 12:47:56,259 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:47:56,259 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:47:56,259 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:48:09,655 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:48:09,656 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:48:09,656 - INFO - NumPy version: 2.2.6
+2025-07-31 12:48:09,656 - INFO - PIL version: 11.3.0
+2025-07-31 12:48:09,657 - INFO - Application starting...
+2025-07-31 12:48:09,657 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:48:09,657 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:48:09,657 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:49:12,748 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:49:12,748 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:49:12,748 - INFO - NumPy version: 2.2.6
+2025-07-31 12:49:12,748 - INFO - PIL version: 11.3.0
+2025-07-31 12:49:12,748 - INFO - Application starting...
+2025-07-31 12:49:12,748 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:49:12,748 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:49:12,748 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:49:38,326 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:49:38,326 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:49:38,326 - INFO - NumPy version: 2.2.6
+2025-07-31 12:49:38,326 - INFO - PIL version: 11.3.0
+2025-07-31 12:49:38,326 - INFO - Application starting...
+2025-07-31 12:49:38,326 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:49:38,327 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:49:38,327 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:51:24,340 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:51:24,340 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:51:24,340 - INFO - NumPy version: 2.2.6
+2025-07-31 12:51:24,341 - INFO - PIL version: 11.3.0
+2025-07-31 12:51:24,341 - INFO - Application starting...
+2025-07-31 12:51:24,341 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:51:24,341 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:51:24,341 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:52:45,264 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:52:45,264 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:52:45,265 - INFO - NumPy version: 2.2.6
+2025-07-31 12:52:45,265 - INFO - PIL version: 11.3.0
+2025-07-31 12:52:45,265 - INFO - Application starting...
+2025-07-31 12:52:45,265 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:52:45,265 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:52:45,266 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 12:53:28,839 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 12:53:28,840 - INFO - OpenCV version: 4.12.0
+2025-07-31 12:53:28,840 - INFO - NumPy version: 2.2.6
+2025-07-31 12:53:28,840 - INFO - PIL version: 11.3.0
+2025-07-31 12:53:28,840 - INFO - Application starting...
+2025-07-31 12:53:28,840 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'employee.jpg', 'grayscale']
+2025-07-31 12:53:28,840 - INFO - Running with save_path: C:\Photos, filename: employee.jpg, grayscale_only: True, auto_close: True
+2025-07-31 12:53:28,841 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts
+2025-07-31 13:01:14,483 - INFO - Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-07-31 13:01:14,484 - INFO - OpenCV version: 4.12.0
+2025-07-31 13:01:14,484 - INFO - NumPy version: 2.2.6
+2025-07-31 13:01:14,484 - INFO - PIL version: 11.3.0
+2025-07-31 13:01:14,484 - INFO - Application starting...
+2025-07-31 13:01:14,484 - INFO - Command line arguments: ['face.py', 'C:\\Photos', 'file.jpg']
+2025-07-31 13:01:14,484 - INFO - Running with save_path: C:\Photos, filename: file.jpg, grayscale_only: False, auto_close: False
+2025-07-31 13:01:14,485 - INFO - Running as script. Base path: D:\Dropbox\HE MANAGEMENT SYSTEM\scripts

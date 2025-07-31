@@ -36,7 +36,7 @@ class ImageUtilityApp:
     A comprehensive GUI application for capturing, processing, and saving face photos.
     Provides real-time face detection, image enhancement, and multiple output formats.
     """
-    def __init__(self, root, save_path, filename, from_access=False, grayscale_only=False, auto_close=False):
+    def __init__(self, root, save_path, filename, from_access=False, grayscale_only=False, auto_close=False, show_messages=True):
         """
         Initialize the Image Utility Application
         
@@ -47,6 +47,7 @@ class ImageUtilityApp:
             from_access: Boolean indicating if app is launched from Access database
             grayscale_only: Boolean indicating if only grayscale should be saved automatically
             auto_close: Boolean indicating if app should close automatically after saving
+            show_messages: Boolean indicating if success/error messages should be displayed
         """
         # Initialize main window properties
         self.root = root
@@ -55,6 +56,7 @@ class ImageUtilityApp:
         self.from_access = from_access
         self.grayscale_only = grayscale_only
         self.auto_close = auto_close
+        self.show_messages = show_messages
         self.root.title("Image Utility App")
         self.root.attributes('-topmost', True)  # Keep window on top
         self.root.geometry("1000x700")  # Set default window size
@@ -113,6 +115,7 @@ class ImageUtilityApp:
         self.best_frame = None          # Best frame captured during auto-capture
         self.best_score = -1            # Quality score of the best frame
         self.saved_image_path = ""      # Path of the last saved image
+        self.capture_success_time = None # Timestamp when capture was successful
 
 
         # GUI Elements 
@@ -207,8 +210,8 @@ class ImageUtilityApp:
             fg='#4CAF50'
         ).pack(anchor='nw', pady=(0, 5))
 
-        # Live feed canvas (below controls)
-        self.canvas = tk.Canvas(self.left_container, width=480, height=360, bg='black')
+        # Live feed canvas (below controls) - Larger size for better face detection
+        self.canvas = tk.Canvas(self.left_container, width=640, height=480, bg='black')
         self.canvas.pack()
         self.border_colors = ['#4CAF50', '#2196F3', '#9C27B0', '#F44336']  # Green, Blue, Purple, Red
         self.current_border_color = 0
@@ -256,8 +259,8 @@ class ImageUtilityApp:
         self.update_feed()
 
         # Make window wider to fit all controls and previews
-        self.root.geometry("1200x650")
-        self.root.minsize(1100, 600)
+        self.root.geometry("1400x750")
+        self.root.minsize(1300, 700)
 
     def update_feed(self):
         """
@@ -288,7 +291,7 @@ class ImageUtilityApp:
                 frame = cv2.convertScaleAbs(frame, alpha=0.8, beta=-15)
             self.last_brightness_check = time.time()
 
-        # Apply live filters to feed
+        # Apply live filters to feed with enhanced brightness for better visibility
         img = frame.copy()
         if self.noise_value > 0:
             img = cv2.GaussianBlur(img, (2 * self.noise_value + 1, 2 * self.noise_value + 1), 0)
@@ -296,7 +299,8 @@ class ImageUtilityApp:
             hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
             hsv[:, :, 1] = np.clip(hsv[:, :, 1] * self.saturation_value, 0, 255).astype(np.uint8)
             img = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-        img = cv2.convertScaleAbs(img, alpha=self.contrast_value, beta=self.brightness_value)
+        # Enhanced brightness and contrast for better live feed visibility
+        img = cv2.convertScaleAbs(img, alpha=1.3, beta=30)
         kernel = np.array([[-1, -1, -1], [-1, 9 * self.sharpness_value, -1], [-1, -1, -1]])
         img = cv2.filter2D(img, -1, kernel)
         if self.gamma_value != 1.0:
@@ -318,8 +322,14 @@ class ImageUtilityApp:
                 elapsed = time.time() - self.face_detected_time
                 if elapsed <= 3:  # Show countdown for 3 seconds
                     countdown = 3 - int(elapsed)
-                    cv2.putText(img, f"Capturing in: {countdown}", (10, 30), 
-                              cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                    # Center the countdown text
+                    text = f"Capturing in: {countdown}"
+                    text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.5, 3)[0]
+                    text_x = (img.shape[1] - text_size[0]) // 2
+                    text_y = img.shape[0] // 2 - 50
+                    # Add background rectangle for better visibility
+                    cv2.rectangle(img, (text_x - 10, text_y - 40), (text_x + text_size[0] + 10, text_y + 10), (0, 0, 0), -1)
+                    cv2.putText(img, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
                 elif not self.auto_capture:  # After 3 seconds, trigger auto-capture
                     self.auto_capture = True
                     self.auto_capture_var.set(True)
@@ -359,9 +369,26 @@ class ImageUtilityApp:
         if self.manual_crop and self.crop_start and self.crop_end:
             cv2.rectangle(img, self.crop_start, self.crop_end, (0, 0, 255), 2)
 
-        # Resize frame to fit smaller canvas
-        frame_resized = cv2.resize(img, (640, 480))
-        frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+        # Show capture success message
+        if self.capture_success_time is not None:
+            elapsed = time.time() - self.capture_success_time
+            if elapsed <= 1:  # Show for 1 second
+                text = "Face Captured Successfully"
+                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)[0]
+                text_x = (img.shape[1] - text_size[0]) // 2
+                text_y = img.shape[0] // 2
+                # Add background rectangle for better visibility
+                cv2.rectangle(img, (text_x - 15, text_y - 35), (text_x + text_size[0] + 15, text_y + 10), (0, 0, 0), -1)
+                cv2.putText(img, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
+            else:
+                # Close app after 1 second if auto_close is enabled
+                if self.auto_close:
+                    self.root.quit()
+                    return
+                self.capture_success_time = None
+
+        # Use frame at canvas size for better detection
+        frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img_tk = Image.fromarray(frame_rgb)
         img_tk = ImageTk.PhotoImage(img_tk)
         self.canvas.delete("all")
@@ -513,6 +540,9 @@ class ImageUtilityApp:
         # Auto-save after capture
         self.auto_save_after_capture()
         
+        # Set capture success time for confirmation message
+        self.capture_success_time = time.time()
+        
         # Play beep sound on capture
         self.root.bell()
 
@@ -590,8 +620,8 @@ class ImageUtilityApp:
         self.saved_path_entry.config(state='readonly')
         pyperclip.copy(self.saved_image_path)
         
-        # Show success message and auto-close if configured
-        if self.auto_close:
+        # Show success message if not using visual confirmation
+        if self.auto_close and self.show_messages:
             messagebox.showinfo("Success", f"Image saved to {self.saved_image_path}\nPath copied to clipboard")
             self.root.quit()
 
@@ -717,7 +747,8 @@ class ImageUtilityApp:
         self.saved_path_entry.insert(0, self.saved_image_path)
         self.saved_path_entry.config(state='readonly')
         pyperclip.copy(self.saved_image_path)
-        messagebox.showinfo("Success", f"Image saved to {self.saved_image_path}\nPath copied to clipboard")
+        if self.show_messages:
+            messagebox.showinfo("Success", f"Image saved to {self.saved_image_path}\nPath copied to clipboard")
         self.root.quit()
 
     def reset_capture(self):
@@ -794,7 +825,7 @@ class ImageUtilityApp:
         if hasattr(self, 'cap'):
             self.cap.release()
 
-def run_image_utility(save_path, filename, from_access=False, grayscale_only=False, auto_close=False):
+def run_image_utility(save_path, filename, from_access=False, grayscale_only=False, auto_close=False, show_messages=True):
     """Run the Image Utility App with given save path and filename."""
     try:
         # Additional cleanup for path issues from MS Access
@@ -811,7 +842,7 @@ def run_image_utility(save_path, filename, from_access=False, grayscale_only=Fal
                 os.makedirs(save_path, exist_ok=True)
         
         root = tk.Tk()
-        app = ImageUtilityApp(root, save_path, filename, from_access, grayscale_only, auto_close)
+        app = ImageUtilityApp(root, save_path, filename, from_access, grayscale_only, auto_close, show_messages)
         root.mainloop()
         
         # Return the full path of the saved image for MS Access
@@ -836,10 +867,14 @@ if __name__ == "__main__":
             filename = sys.argv[2].strip('"')   # Remove any surrounding quotes
             grayscale_only = len(sys.argv) > 3 and sys.argv[3].lower() == 'grayscale'
             auto_close = len(sys.argv) > 4 and sys.argv[4].lower() == 'autoclose'
+            show_messages = not (len(sys.argv) > 5 and sys.argv[5].lower() == 'silent')
             from_access = True  # Set to True when running from command line
             # Auto-enable auto_close when grayscale_only and from_access are both true
             if grayscale_only and from_access:
                 auto_close = True
+            # Auto-disable messages for fully automated mode
+            if grayscale_only and auto_close:
+                show_messages = False
             logging.info(f"Running with save_path: {save_path}, filename: {filename}, grayscale_only: {grayscale_only}, auto_close: {auto_close}")
             
             # Remove trailing backslashes from save_path
@@ -868,7 +903,7 @@ if __name__ == "__main__":
                 base_path = os.path.dirname(os.path.abspath(__file__))
                 logging.info(f"Running as script. Base path: {base_path}")
                 
-            run_image_utility(save_path, filename, from_access=from_access, grayscale_only=grayscale_only, auto_close=auto_close)
+            run_image_utility(save_path, filename, from_access=from_access, grayscale_only=grayscale_only, auto_close=auto_close, show_messages=show_messages)
         else:
             logging.error("Invalid number of arguments")
             print("Usage: FacePhotoUtility.exe <save_path> <filename> [grayscale]")
