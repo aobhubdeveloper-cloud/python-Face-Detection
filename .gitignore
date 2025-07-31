@@ -1,2 +1,5 @@
-# Log files
+# This is a .gitignore file for the HE Management System project
 face_utility.log
+Live Webcam Feed.laccdb
+/TestImages/
+/TestImages/*
