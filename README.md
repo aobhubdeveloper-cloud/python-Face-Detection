@@ -7,8 +7,10 @@ A comprehensive Python-based face photo capture application with real-time face 
 ### 🎯 Core Functionality
 - **Real-time Face Detection**: Uses OpenCV Haar Cascades for accurate face and eye detection
 - **Auto-Capture Mode**: Automatically captures the best quality photo when face is detected
+- **Auto-Save & Close**: Automatically saves images after capture and closes app when configured
 - **Manual Capture**: Click-to-capture functionality for manual control
 - **Dual Output**: Saves both color and grayscale versions simultaneously
+- **Grayscale-Only Mode**: Option to save only grayscale images for specific workflows
 - **Audio Feedback**: System beep notifications for capture events and alerts
 
 ### 📸 Image Processing
@@ -49,6 +51,27 @@ pip install opencv-python numpy pillow pyperclip
 python face-utility.py
 ```
 
+### Command Line Parameters
+```bash
+# Basic usage with path and filename
+python face.py "C:\Photos" "employee.jpg"
+
+# Save only grayscale version (auto-saves and closes)
+python face.py "C:\Photos" "employee.jpg" grayscale
+
+# Manual auto-close control
+python face.py "C:\Photos" "employee.jpg" grayscale autoclose
+
+# Save both color and grayscale versions
+python face.py "C:\Photos" "employee.jpg"
+```
+
+### Parameter Options
+- **save_path**: Directory where images will be saved
+- **filename**: Name for the captured image file
+- **grayscale**: (Optional) Save only grayscale version and auto-close
+- **autoclose**: (Optional) Close application automatically after saving
+
 ### MS Access Integration
 ```bash
 python face-utility.py "C:\Photos" "employee_photo.jpg"
@@ -67,8 +90,13 @@ python face-utility.py "C:\Photos" "employee_photo.jpg"
 1. **Position Face**: Align face within the yellow guideline box
 2. **Wait for Detection**: Green rectangle appears around detected face
 3. **Auto-Capture**: Photo automatically taken after 3-second countdown with beep confirmation
-4. **Manual Capture**: Click on detected face to capture immediately with beep feedback
-5. **Save**: Click on color or grayscale preview to save with success beep
+4. **Auto-Save**: Images automatically saved after capture (both color and grayscale by default)
+5. **Manual Capture**: Click on detected face to capture immediately with beep feedback
+6. **Manual Save**: Click on color or grayscale preview to save specific version
+7. **Auto-Close**: Application closes automatically when configured (grayscale mode + MS Access)
+
+### Automated Workflow (Grayscale Mode)
+- Face detection → Auto-capture → Auto-save grayscale → Success message → Auto-close
 
 ### Settings
 - **Background**: Choose background color for photos
@@ -76,6 +104,58 @@ python face-utility.py "C:\Photos" "employee_photo.jpg"
 - **Quality**: Adjust compression level (0-100)
 - **Theme**: Toggle between dark and light interface
 - **Audio Feedback**: System beep notifications enabled by default
+
+## Advanced Features
+
+### Auto-Save Modes
+
+#### Default Mode (Both Versions)
+```bash
+python face.py "C:\Photos" "employee.jpg"
+```
+- Saves both color and grayscale versions
+- Files: `employee_color.jpg` and `employee_gray.jpg`
+- User can still click previews to save manually
+- Application stays open for additional captures
+
+#### Grayscale-Only Mode
+```bash
+python face.py "C:\Photos" "employee.jpg" grayscale
+```
+- Saves only grayscale version as `employee.jpg`
+- Automatically closes after saving
+- Shows success message with file location
+- Ideal for MS Access integration
+
+#### Manual Auto-Close
+```bash
+python face.py "C:\Photos" "employee.jpg" grayscale autoclose
+```
+- Explicit control over auto-close behavior
+- Can be combined with any save mode
+
+### Integration Modes
+
+#### MS Access Integration (from_access=True)
+- Forces JPEG format regardless of user selection
+- Performs automatic path cleanup
+- Returns saved file path for VBA integration
+- Handles MS Access-specific filename formatting
+
+#### Standalone Mode (from_access=False)
+- Full user control over format (JPEG/PNG)
+- Uses filename exactly as provided
+- No special path processing
+- Interactive GUI mode
+
+### Command Reference
+
+| Command | Behavior | Output Files | Auto-Close |
+|---------|----------|--------------|------------|
+| `python face.py "path" "file.jpg"` | Save both versions | `file_color.jpg`, `file_gray.jpg` | No |
+| `python face.py "path" "file.jpg" grayscale` | Save grayscale only | `file.jpg` | Yes |
+| `python face.py "path" "file.jpg" grayscale autoclose` | Save grayscale only | `file.jpg` | Yes |
+| Interactive GUI (no params) | Manual save via clicks | User choice | No |
 
 ## Technical Specifications
 
@@ -212,12 +292,21 @@ Public Function CaptureImageAndReturnPath(ByVal folderPath As String, ByVal file
 
 '    fullPhotoPath = photoFolder & photoFileName
     
-    ' Construct a command that works like your manual version
+    ' Construct command for different modes:
+    
+    ' Standard mode (saves both color and grayscale)
     commandLine = "cmd /c """ & _
         """" & pythonPath & """" & " " & _
         """" & scriptPath & """" & " " & _
         """" & photoFolder & """" & " " & _
         """" & photoFileName & """" & """"
+    
+    ' Grayscale-only mode (auto-saves and closes)
+    ' commandLine = "cmd /c """ & _
+    '     """" & pythonPath & """" & " " & _
+    '     """" & scriptPath & """" & " " & _
+    '     """" & photoFolder & """" & " " & _
+    '     """" & photoFileName & """" & " grayscale""""
 
       ' Debug Print to check
     Debug.Print commandLine
