@@ -11,24 +11,35 @@ import pyperclip  # Cross-platform clipboard operations
 import subprocess  # Subprocess management
 import logging  # For error tracking
 import traceback  # For detailed error information
+from datetime import datetime, timedelta
 
-# Set up logging
+# Set up logging with error-only configuration
 log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'face_utility.log')
+
+# Clear log file if older than 2 days
+if os.path.exists(log_path):
+    file_mod_time = datetime.fromtimestamp(os.path.getmtime(log_path))
+    if datetime.now() - file_mod_time > timedelta(days=2):
+        open(log_path, 'w').close()  # Clear the file
+
+# Configure logging for errors only with detailed format
 logging.basicConfig(
     filename=log_path,
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.ERROR,  # Only log errors and critical issues
+    format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s',
+    filemode='a'  # Append mode
 )
 
-# Log system information
-logging.info(f"Python version: {sys.version}")
-logging.info(f"OpenCV version: {cv2.__version__}")
-logging.info(f"NumPy version: {np.__version__}")
-logging.info(f"PIL version: {Image.__version__}")
+def log_error(message, exc_info=None):
+    """Log error with function and line information"""
+    frame = traceback.extract_stack()[-2]  # Get caller frame
+    logging.error(f"{frame.filename}:{frame.lineno} - {frame.name}() - {message}", exc_info=exc_info)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """Global exception handler"""
-    logging.error("Uncaught exception:", exc_info=(exc_type, exc_value, exc_traceback))
+    tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+    tb_text = ''.join(tb_lines)
+    logging.error(f"Uncaught exception: {str(exc_value)}\n{tb_text}")
     messagebox.showerror("Error", f"An error occurred: {str(exc_value)}\nCheck face_utility.log for details")
 
 class ImageUtilityApp:
@@ -75,8 +86,15 @@ class ImageUtilityApp:
         self.gamma_value = 1.0
 
         # Initialize webcam capture
-        self.cap = cv2.VideoCapture(0)  # Open default camera (index 0)
-        if not self.cap.isOpened():
+        try:
+            self.cap = cv2.VideoCapture(0)  # Open default camera (index 0)
+            if not self.cap.isOpened():
+                log_error("Cannot open webcam - camera not available or in use")
+                messagebox.showerror("Error", "Cannot open webcam")
+                self.root.quit()
+                return
+        except Exception as e:
+            log_error(f"Failed to initialize webcam: {str(e)}", exc_info=True)
             messagebox.showerror("Error", "Cannot open webcam")
             self.root.quit()
             return
@@ -93,9 +111,16 @@ class ImageUtilityApp:
             face_cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
             eye_cascade_path = cv2.data.haarcascades + 'haarcascade_eye.xml'
             
-        self.face_cascade = cv2.CascadeClassifier(face_cascade_path)
-        self.eye_cascade = cv2.CascadeClassifier(eye_cascade_path)
-        if self.face_cascade.empty() or self.eye_cascade.empty():
+        try:
+            self.face_cascade = cv2.CascadeClassifier(face_cascade_path)
+            self.eye_cascade = cv2.CascadeClassifier(eye_cascade_path)
+            if self.face_cascade.empty() or self.eye_cascade.empty():
+                log_error(f"Failed to load cascade classifiers - face_cascade_path: {face_cascade_path}, eye_cascade_path: {eye_cascade_path}")
+                messagebox.showerror("Error", "Failed to load detection models")
+                self.root.quit()
+                return
+        except Exception as e:
+            log_error(f"Error loading cascade classifiers: {str(e)}", exc_info=True)
             messagebox.showerror("Error", "Failed to load detection models")
             self.root.quit()
             return
@@ -274,8 +299,15 @@ class ImageUtilityApp:
         - Display updates
         """
         # Capture frame from webcam
-        ret, frame = self.cap.read()
-        if not ret:
+        try:
+            ret, frame = self.cap.read()
+            if not ret:
+                log_error("Failed to capture webcam feed - camera disconnected or unavailable")
+                messagebox.showerror("Error", "Failed to capture webcam feed")
+                self.root.quit()
+                return
+        except Exception as e:
+            log_error(f"Error reading from webcam: {str(e)}", exc_info=True)
             messagebox.showerror("Error", "Failed to capture webcam feed")
             self.root.quit()
             return
@@ -579,7 +611,12 @@ class ImageUtilityApp:
             return
             
         # Ensure save directory exists
-        os.makedirs(self.save_path, exist_ok=True)
+        try:
+            os.makedirs(self.save_path, exist_ok=True)
+        except Exception as e:
+            log_error(f"Failed to create save directory {self.save_path}: {str(e)}", exc_info=True)
+            messagebox.showerror("Error", f"Cannot create save directory: {self.save_path}")
+            return
         
         # Get current values from entries
         current_path = self.path_entry.get()
@@ -594,24 +631,36 @@ class ImageUtilityApp:
         compression = self.compression_scale.get() if hasattr(self.compression_scale, 'get') else 95
         params = [cv2.IMWRITE_JPEG_QUALITY, compression] if img_format == "jpeg" else [cv2.IMWRITE_PNG_COMPRESSION, int((100 - compression) / 10)]
         
-        if self.grayscale_only:
-            # Save only grayscale version
-            self.saved_image_path = os.path.join(current_path, filename)
-            cv2.imwrite(self.saved_image_path, self.gray_img, params)
-        else:
-            # Save both color and grayscale versions
-            # Color version
-            color_filename = os.path.splitext(filename)[0] + '_color' + os.path.splitext(filename)[1]
-            color_path = os.path.join(current_path, color_filename)
-            cv2.imwrite(color_path, self.color_img, params)
-            
-            # Grayscale version
-            gray_filename = os.path.splitext(filename)[0] + '_gray' + os.path.splitext(filename)[1]
-            gray_path = os.path.join(current_path, gray_filename)
-            cv2.imwrite(gray_path, self.gray_img, params)
-            
-            # Set the main saved path to color version
-            self.saved_image_path = color_path
+        try:
+            if self.grayscale_only:
+                # Save only grayscale version
+                self.saved_image_path = os.path.join(current_path, filename)
+                success = cv2.imwrite(self.saved_image_path, self.gray_img, params)
+                if not success:
+                    log_error(f"Failed to save grayscale image to {self.saved_image_path}")
+                    return
+            else:
+                # Save both color and grayscale versions
+                # Color version
+                color_filename = os.path.splitext(filename)[0] + '_color' + os.path.splitext(filename)[1]
+                color_path = os.path.join(current_path, color_filename)
+                success1 = cv2.imwrite(color_path, self.color_img, params)
+                
+                # Grayscale version
+                gray_filename = os.path.splitext(filename)[0] + '_gray' + os.path.splitext(filename)[1]
+                gray_path = os.path.join(current_path, gray_filename)
+                success2 = cv2.imwrite(gray_path, self.gray_img, params)
+                
+                if not success1 or not success2:
+                    log_error(f"Failed to save images - color: {success1}, gray: {success2}")
+                    return
+                
+                # Set the main saved path to color version
+                self.saved_image_path = color_path
+        except Exception as e:
+            log_error(f"Error saving images: {str(e)}", exc_info=True)
+            messagebox.showerror("Error", "Failed to save image")
+            return
         
         # Update the saved path entry
         self.saved_path_entry.config(state='normal')
@@ -688,7 +737,11 @@ class ImageUtilityApp:
         if self.saved_image_path and os.path.exists(self.saved_image_path):
             try:
                 subprocess.run(['start', '', self.saved_image_path], shell=True, check=True)
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
+                log_error(f"Failed to open image {self.saved_image_path}: {str(e)}")
+                messagebox.showerror("Error", "Failed to open image")
+            except Exception as e:
+                log_error(f"Unexpected error opening image {self.saved_image_path}: {str(e)}", exc_info=True)
                 messagebox.showerror("Error", "Failed to open image")
 
     def update_previews(self):
@@ -736,12 +789,22 @@ class ImageUtilityApp:
         self.saved_image_path = os.path.join(current_path, filename)
         img_format = 'jpeg' if self.from_access else self.format_var.get().lower()
         compression = self.compression_scale_value if hasattr(self, 'compression_scale_value') else 95
-        if img_type == "color":
-            params = [cv2.IMWRITE_JPEG_QUALITY, compression] if img_format == "jpeg" else [cv2.IMWRITE_PNG_COMPRESSION, int((100 - compression) / 10)]
-            cv2.imwrite(self.saved_image_path, self.color_img, params)
-        elif img_type == "gray":
-            params = [cv2.IMWRITE_JPEG_QUALITY, compression] if img_format == "jpeg" else [cv2.IMWRITE_PNG_COMPRESSION, int((100 - compression) / 10)]
-            cv2.imwrite(self.saved_image_path, self.gray_img, params)
+        try:
+            if img_type == "color":
+                params = [cv2.IMWRITE_JPEG_QUALITY, compression] if img_format == "jpeg" else [cv2.IMWRITE_PNG_COMPRESSION, int((100 - compression) / 10)]
+                success = cv2.imwrite(self.saved_image_path, self.color_img, params)
+            elif img_type == "gray":
+                params = [cv2.IMWRITE_JPEG_QUALITY, compression] if img_format == "jpeg" else [cv2.IMWRITE_PNG_COMPRESSION, int((100 - compression) / 10)]
+                success = cv2.imwrite(self.saved_image_path, self.gray_img, params)
+            
+            if not success:
+                log_error(f"Failed to save {img_type} image to {self.saved_image_path}")
+                messagebox.showerror("Error", "Failed to save image")
+                return
+        except Exception as e:
+            log_error(f"Error saving {img_type} image: {str(e)}", exc_info=True)
+            messagebox.showerror("Error", "Failed to save image")
+            return
         self.saved_path_entry.config(state='normal')
         self.saved_path_entry.delete(0, tk.END)
         self.saved_path_entry.insert(0, self.saved_image_path)
@@ -839,7 +902,12 @@ def run_image_utility(save_path, filename, from_access=False, grayscale_only=Fal
             
             # Verify the directory exists or can be created
             if not os.path.exists(save_path):
-                os.makedirs(save_path, exist_ok=True)
+                try:
+                    os.makedirs(save_path, exist_ok=True)
+                except Exception as e:
+                    log_error(f"Failed to create directory {save_path}: {str(e)}", exc_info=True)
+                    messagebox.showerror("Error", f"Cannot create directory: {save_path}")
+                    return ""
         
         root = tk.Tk()
         app = ImageUtilityApp(root, save_path, filename, from_access, grayscale_only, auto_close, show_messages)
@@ -850,7 +918,7 @@ def run_image_utility(save_path, filename, from_access=False, grayscale_only=Fal
             return app.saved_image_path
         return ""
     except Exception as e:
-        logging.error(f"Error in run_image_utility: {str(e)}", exc_info=True)
+        log_error(f"Error in run_image_utility: {str(e)}", exc_info=True)
         messagebox.showerror("Error", f"Failed to run application: {str(e)}")
         return ""
 
@@ -859,8 +927,7 @@ if __name__ == "__main__":
         # Set up global exception handler
         sys.excepthook = handle_exception
         
-        logging.info("Application starting...")
-        logging.info(f"Command line arguments: {sys.argv}")
+        # Removed info logging - only errors are logged now
         
         if len(sys.argv) >= 3:
             save_path = sys.argv[1].strip('"')  # Remove any surrounding quotes
@@ -875,7 +942,7 @@ if __name__ == "__main__":
             # Auto-disable messages for fully automated mode
             if grayscale_only and auto_close:
                 show_messages = False
-            logging.info(f"Running with save_path: {save_path}, filename: {filename}, grayscale_only: {grayscale_only}, auto_close: {auto_close}")
+            # Removed info logging - only errors are logged now
             
             # Remove trailing backslashes from save_path
             save_path = save_path.rstrip('\\')
@@ -888,28 +955,24 @@ if __name__ == "__main__":
             if not os.path.exists(save_path):
                 try:
                     os.makedirs(save_path)
-                    logging.info(f"Created directory: {save_path}")
                 except Exception as e:
-                    logging.error(f"Failed to create directory: {save_path}")
-                    logging.error(str(e))
+                    log_error(f"Failed to create directory {save_path}: {str(e)}", exc_info=True)
                     messagebox.showerror("Error", f"Failed to create save directory: {save_path}")
                     sys.exit(1)
             
             # Get cascade file paths
             if getattr(sys, 'frozen', False):
                 base_path = sys._MEIPASS
-                logging.info(f"Running as frozen application. Base path: {base_path}")
             else:
                 base_path = os.path.dirname(os.path.abspath(__file__))
-                logging.info(f"Running as script. Base path: {base_path}")
                 
             run_image_utility(save_path, filename, from_access=from_access, grayscale_only=grayscale_only, auto_close=auto_close, show_messages=show_messages)
         else:
-            logging.error("Invalid number of arguments")
+            log_error(f"Invalid number of arguments provided: {len(sys.argv)} - Expected at least 3")
             print("Usage: FacePhotoUtility.exe <save_path> <filename> [grayscale]")
             sys.exit(1)
             
     except Exception as e:
-        logging.critical("Fatal error:", exc_info=True)
+        log_error(f"Fatal application error: {str(e)}", exc_info=True)
         messagebox.showerror("Critical Error", f"Application failed to start: {str(e)}\nCheck face_utility.log for details")
         sys.exit(1)

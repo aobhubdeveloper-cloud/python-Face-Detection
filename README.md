@@ -198,11 +198,22 @@ python face.py "C:\Photos" "employee.jpg" grayscale autoclose silent
 
 ## Configuration
 
-### Logging
-Logs are automatically saved to `face_utility.log` with:
-- Application startup/shutdown events
-- Error tracking and debugging info
-- System information and version details
+### Error Handling & Logging
+Advanced error management system with:
+- **Smart Log Management**: Automatically clears log files older than 2 days
+- **Error-Only Logging**: Logs only errors and critical issues (no success messages)
+- **Detailed Error Context**: Includes filename, line number, and function name for each error
+- **Comprehensive Error Handling**: Try-catch blocks around all critical operations
+- **Automatic Recovery**: Graceful handling of webcam, file system, and processing errors
+
+Log format: `timestamp - ERROR - filename:line - function() - detailed_message`
+
+Common logged errors:
+- Webcam initialization/capture failures
+- File system permission issues
+- Image processing/saving errors
+- Directory creation problems
+- Cascade classifier loading failures
 
 ### Customization
 Key parameters can be modified in the code:
@@ -230,13 +241,19 @@ self.root.bell()  # System beep sound
 ## Troubleshooting
 
 ### Common Issues
-- **Camera Not Found**: Check webcam connection and permissions
+- **Camera Not Found**: Check webcam connection and permissions (logged with specific error details)
 - **Face Not Detected**: Ensure good lighting and face visibility
-- **Save Path Error**: Verify directory exists and has write permissions
+- **Save Path Error**: Directory creation failures are automatically logged with full path details
 - **Import Errors**: Install required Python packages
+- **File Save Failures**: Image write operations include success validation and detailed error logging
+- **Cascade Loading Errors**: Haar cascade file loading failures logged with file paths
 
 ### Error Logs
-Check `face_utility.log` for detailed error information and debugging data.
+Check `face_utility.log` for detailed error information with:
+- Exact line numbers and function names where errors occurred
+- Full stack traces for debugging
+- Automatic log rotation (clears files older than 2 days)
+- Error-only logging (no verbose success messages)
 
 ### Performance Tips
 - Use good lighting for better face detection
@@ -248,40 +265,44 @@ Check `face_utility.log` for detailed error information and debugging data.
 
 ### VBA Integration with Dynamic File Paths based on Selection of Values
 ```vba
-Private Sub CaptureImage_Click()
-    Dim BIFolder As String
+Private Sub cmdImage_Click()
+
+Dim BIFolder As String
     Dim fileName As String
+    Dim BIOutName As String
     Dim txtSubject As String
     Dim resultPath As String
     
     ' Build the folder structure
     BIFolder = Application.CurrentProject.path & "\Movement Orders\" & _
-        Nz(Me.TextCarriageComp.value, "") & "\" & _
+        Nz(Me.TextCarrigeComp.value, "") & "\" & _
         Nz(Me.TextCompany.value, "") & "\" & _
         Nz(Me.LoadFld.value, "") & " - " & Nz(Me.DecRef.value, "") & "\LivePictures\"
     
     ' Ensure the folder exists
-    PathCreator BIFolder
+     PathCreator BIFolder
     
     ' Build the filename
-    txtSubject = "Dated_" & Format(Me.TextOrderDate.value, "DD-MMMM-YYYY") & "," & _
-        CStr(Me.TextBowzer.value) & "," & CStr(Me.LoadFld.value) & _
+    txtSubject = "Dated_" & Format(Me.TextOrderDate.value, "DD-MMMM-YYYY") & "," & CStr(Me.TextBowzer.value) & "," & CStr(Me.LoadFld.value) & _
         "-" & CStr(Me.DecRef.value) & "," & CStr(Me.TextDrv1.value)
     
     fileName = txtSubject & ".jpg"
+    BIOutName = BIFolder & fileName
 
-    ' Call webcam capture and get result
+    ' Call webcam capture form and get result
     resultPath = CaptureImageAndReturnPath(BIFolder, fileName)
 
     If resultPath <> "" And Len(Dir(resultPath)) > 0 Then
-        Me.DriverLivePicture.value = resultPath
+       Me.DriverLivePicture.value = resultPath
         Me.DriverImage.Picture = DriverLivePicture
         Me.DriverImage.Requery
         Me.BtnSave.Enabled = True
+       
     Else
         MsgBox "Image capture cancelled or failed."
         Me.BtnSave.Enabled = False
     End If
+    
 End Sub
 ```
 
@@ -322,6 +343,35 @@ Public Function CaptureImageAndReturnPath(ByVal folderPath As String, ByVal file
     photoFileName = CStr(fileName)
     fullPhotoPath = photoFolder & "\" & photoFileName
     
+    
+     ' === VALIDATIONS ===
+    If Dir(scriptPath) = "" Then
+        MsgBox "Python script not found at: " & scriptPath, vbCritical
+        CaptureImageAndReturnPath = ""
+        Exit Function
+    End If
+
+    If Dir(photoFolder, vbDirectory) = "" Then
+        MsgBox "Image folder does not exist: " & photoFolder, vbCritical
+        CaptureImageAndReturnPath = ""
+        Exit Function
+    End If
+    
+    
+    ' Create shell object
+    Set shellObj = CreateObject("WScript.Shell")
+
+    ' Validate Python in system PATH
+    If shellObj.Run("cmd /c python --version", 0, True) <> 0 Then
+        MsgBox "Python is not available in system PATH.", vbCritical
+        CaptureImageAndReturnPath = ""
+        Exit Function
+    End If
+
+    ' Construct command to run the Python script
+    commandLine = "cmd /c python """ & scriptPath & """ """ & _
+                  photoFolder & """ """ & photoFileName & """ grayscale autoclose silent"
+    
     ' Choose your command mode (uncomment one):
     
     ' MODE 1: BOTH COLOR AND GRAYSCALE (Interactive)
@@ -339,15 +389,14 @@ Public Function CaptureImageAndReturnPath(ByVal folderPath As String, ByVal file
     ' MODE 3: SILENT GRAYSCALE (Fully Automated) - CURRENT ACTIVE MODE
     ' Saves only grayscale version, no message boxes, auto-closes
     ' Best for batch processing and database integration
-    commandLine = "cmd /c python """ & scriptPath & """ """ & _
+'     commandLine = "cmd /c python """ & scriptPath & """ """ & _
                   photoFolder & """ """ & photoFileName & """ grayscale autoclose silent"
     
     ' Debug output
     Debug.Print commandLine
 
-    ' Run the Python script (hidden window, wait for completion)
-    Set shellObj = CreateObject("WScript.Shell")
-    shellObj.Run commandLine, 0, True   ' 0 = hidden window, True = wait
+    ' Run the command (hidden window, wait for completion)
+    shellObj.Run commandLine, 0, True
 
     ' Check if file was created
     If Dir(fullPhotoPath) <> "" Then
@@ -364,11 +413,6 @@ Public Function CaptureImageAndReturnPath(ByVal folderPath As String, ByVal file
 ErrorHandler:
     MsgBox "Error: " & Err.Description, vbCritical
     CaptureImageAndReturnPath = ""
-End Function
-
-' Helper function to normalize file paths
-Public Function NormalizePath(ByVal path As String) As String
-    NormalizePath = Replace(path, "\\", "\")
 End Function
 
 '==============================================================================
