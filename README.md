@@ -246,7 +246,7 @@ Check `face_utility.log` for detailed error information and debugging data.
 
 ## MS Access Integration
 
-### VBA Integration
+### VBA Integration with Dynamic File Paths based on Selection of Values
 ```vba
 Private Sub CaptureImage_Click()
     Dim BIFolder As String
@@ -293,147 +293,82 @@ End Sub
 ' This function launches the Python face capture utility and returns the saved image path
 ' 
 ' REQUIREMENTS:
-' 1. Python virtual environment at: [Access DB Path]\scripts\.venv\
+' 1. Global Python installation with required packages
 ' 2. Face capture script at: [Access DB Path]\scripts\face.py
 ' 3. Webcam connected and accessible
 ' 4. Required Python packages: opencv-python, numpy, pillow, pyperclip
 '
 ' USAGE MODES:
-' Mode 1 - Grayscale Only (Recommended for Access): Saves single grayscale image, auto-closes
-' Mode 2 - Both Versions: Saves color and grayscale versions, stays open
+' Mode 1 - Both Versions: Saves color and grayscale versions, stays open
+' Mode 2 - Grayscale Only: Saves single grayscale image, auto-closes
 ' Mode 3 - Silent Mode: No message boxes, fully automated
 '==============================================================================
 
 Public Function CaptureImageAndReturnPath(ByVal folderPath As String, ByVal fileName As String) As String
     On Error GoTo ErrorHandler
 
-    ' Variable declarations
-    Dim projectPath As String      ' Path to scripts folder
-    Dim pythonPath As String       ' Path to Python executable in virtual environment
-    Dim scriptPath As String       ' Path to face.py script
-    Dim photoFolder As String      ' Cleaned folder path for saving
-    Dim photoFileName As String    ' Image filename
-    Dim commandLine As String      ' Complete command to execute
-    Dim fullPhotoPath As String    ' Full path to expected saved image
-    Dim shellObj As Object         ' Shell object for running commands
-    Dim startTime As Date          ' For timeout handling
-    
-    ' STEP 1: Setup paths (adjust these paths based on your installation)
+    Dim projectPath As String
+    Dim scriptPath As String
+    Dim photoFolder As String
+    Dim photoFileName As String
+    Dim commandLine As String
+    Dim fullPhotoPath As String
+    Dim shellObj As Object
+
+    ' Define paths
     projectPath = CStr(Application.CurrentProject.path) & "\scripts"
-    pythonPath = projectPath & "\.venv\Scripts\python.exe"  ' Virtual environment Python
-    scriptPath = projectPath & "\face.py"                    ' Main face capture script
-    
-    ' STEP 2: Clean and validate input paths
+    scriptPath = projectPath & "\face.py"
     photoFolder = IIf(Right(CStr(folderPath), 1) = "\", Left(CStr(folderPath), Len(CStr(folderPath)) - 1), CStr(folderPath))
     photoFileName = CStr(fileName)
     fullPhotoPath = photoFolder & "\" & photoFileName
     
-    ' STEP 3: Verify required files exist
-    If Dir(pythonPath) = "" Then
-        MsgBox "Python executable not found at: " & pythonPath & vbCrLf & _
-               "Please ensure virtual environment is set up correctly.", vbCritical
-        CaptureImageAndReturnPath = ""
-        Exit Function
-    End If
+    ' Choose your command mode (uncomment one):
     
-    If Dir(scriptPath) = "" Then
-        MsgBox "Face capture script not found at: " & scriptPath, vbCritical
-        CaptureImageAndReturnPath = ""
-        Exit Function
-    End If
+    ' MODE 1: BOTH COLOR AND GRAYSCALE (Interactive)
+    ' Saves both versions: filename_color.jpg and filename_gray.jpg
+    ' Application stays open for user interaction
+    ' commandLine = "cmd /c python """ & scriptPath & """ """ & _
+    '               photoFolder & """ """ & photoFileName & """
     
-    ' STEP 4: Ensure target directory exists
-    PathCreator photoFolder
+    ' MODE 2: GRAYSCALE ONLY (Recommended for MS Access)
+    ' Saves only grayscale version as specified filename
+    ' Automatically closes after capture
+    ' commandLine = "cmd /c python """ & scriptPath & """ """ & _
+    '               photoFolder & """ """ & photoFileName & """ grayscale"
     
-    ' STEP 5: Choose command mode based on requirements
+    ' MODE 3: SILENT GRAYSCALE (Fully Automated) - CURRENT ACTIVE MODE
+    ' Saves only grayscale version, no message boxes, auto-closes
+    ' Best for batch processing and database integration
+    commandLine = "cmd /c python """ & scriptPath & """ """ & _
+                  photoFolder & """ """ & photoFileName & """ grayscale autoclose silent"
     
-    ' MODE 1: GRAYSCALE ONLY (Recommended for MS Access)
-    ' - Saves only grayscale version as specified filename
-    ' - Automatically closes after capture
-    ' - No success message boxes
-    ' - Ideal for database integration
-    commandLine = "cmd /c """ & _
-        """" & pythonPath & """" & " " & _
-        """" & scriptPath & """" & " " & _
-        """" & photoFolder & """" & " " & _
-        """" & photoFileName & """" & " grayscale"""
-    
-    ' MODE 2: BOTH COLOR AND GRAYSCALE (Interactive)
-    ' - Saves both color and grayscale versions
-    ' - Files saved as: filename_color.jpg and filename_gray.jpg
-    ' - Application stays open for user interaction
-    ' - User can click previews to save manually
-    ' Uncomment below to use this mode:
-    ' commandLine = "cmd /c """ & _
-    '     """" & pythonPath & """" & " " & _
-    '     """" & scriptPath & """" & " " & _
-    '     """" & photoFolder & """" & " " & _
-    '     """" & photoFileName & """"
-    
-    ' MODE 3: SILENT GRAYSCALE (Fully Automated)
-    ' - Saves only grayscale version
-    ' - No message boxes at all
-    ' - Automatically closes
-    ' - Best for batch processing
-    ' Uncomment below to use this mode:
-    ' commandLine = "cmd /c """ & _
-    '     """" & pythonPath & """" & " " & _
-    '     """" & scriptPath & """" & " " & _
-    '     """" & photoFolder & """" & " " & _
-    '     """" & photoFileName & """" & " grayscale autoclose silent"""
-    
-    ' STEP 6: Debug output (remove in production if not needed)
-    Debug.Print "=== FACE CAPTURE DEBUG INFO ==="
-    Debug.Print "Project Path: " & projectPath
-    Debug.Print "Python Path: " & pythonPath
-    Debug.Print "Script Path: " & scriptPath
-    Debug.Print "Photo Folder: " & photoFolder
-    Debug.Print "Photo Filename: " & photoFileName
-    Debug.Print "Full Photo Path: " & fullPhotoPath
-    Debug.Print "Command: " & commandLine
-    Debug.Print "================================"
-    
-    ' STEP 7: Execute the Python script
+    ' Debug output
+    Debug.Print commandLine
+
+    ' Run the Python script (hidden window, wait for completion)
     Set shellObj = CreateObject("WScript.Shell")
-    
-    ' Run parameters explanation:
-    ' - commandLine: The complete command to execute
-    ' - 0: Hide the command window (use 1 to show for debugging)
-    ' - True: Wait for completion before continuing
-    shellObj.Run commandLine, 0, True
-    
-    ' STEP 8: Wait for file system to update (important for network drives)
-    Application.Wait (Now + TimeValue("0:00:02"))  ' Wait 2 seconds
-    
-    ' STEP 9: Verify the image was created and return result
+    shellObj.Run commandLine, 0, True   ' 0 = hidden window, True = wait
+
+    ' Check if file was created
     If Dir(fullPhotoPath) <> "" Then
-        ' Success: Image file exists
-        DoCmd.Beep  ' Audio confirmation
-        CaptureImageAndReturnPath = fullPhotoPath
-        Debug.Print "SUCCESS: Image saved at " & fullPhotoPath
+        DoCmd.Beep
+        MsgBox "Image created successfully!", vbInformation
+        CaptureImageAndReturnPath = NormalizePath(folderPath & "\" & fileName)
     Else
-        ' Failure: Image file not found
-        MsgBox "Image capture failed or was cancelled." & vbCrLf & _
-               "Expected file: " & fullPhotoPath & vbCrLf & vbCrLf & _
-               "Possible causes:" & vbCrLf & _
-               "- User cancelled the capture" & vbCrLf & _
-               "- Webcam not available" & vbCrLf & _
-               "- Insufficient lighting for face detection" & vbCrLf & _
-               "- Python script error (check face_utility.log)", vbExclamation
+        MsgBox "Image not found at: " & fullPhotoPath, vbExclamation
         CaptureImageAndReturnPath = ""
-        Debug.Print "FAILURE: Image not found at " & fullPhotoPath
     End If
-    
+
     Exit Function
 
 ErrorHandler:
-    ' Handle any VBA errors that occur
-    MsgBox "VBA Error in CaptureImageAndReturnPath:" & vbCrLf & _
-           "Error Number: " & Err.Number & vbCrLf & _
-           "Description: " & Err.Description & vbCrLf & vbCrLf & _
-           "Command attempted: " & commandLine, vbCritical
-    Debug.Print "VBA ERROR: " & Err.Number & " - " & Err.Description
+    MsgBox "Error: " & Err.Description, vbCritical
     CaptureImageAndReturnPath = ""
+End Function
+
+' Helper function to normalize file paths
+Public Function NormalizePath(ByVal path As String) As String
+    NormalizePath = Replace(path, "\\", "\")
 End Function
 
 '==============================================================================
@@ -442,38 +377,36 @@ End Function
 
 ' Creates directory structure recursively if it doesn't exist
 ' Usage: PathCreator "C:\Photos\Employee\2024"
-Public Sub PathCreator(ByVal strPath As String)
-    On Error Resume Next
+Sub PathCreator(strPath As String)
+Dim fso As New FileSystemObject
+Dim dirs() As String
+Dim i As Long
+Dim newpath As String
+
+dirs = Split(strPath, "\")
+
+For i = LBound(dirs) To UBound(dirs) - 1
     
-    Dim pathParts() As String
-    Dim currentPath As String
-    Dim i As Integer
-    
-    ' Handle UNC paths and drive letters
-    If Left(strPath, 2) = "\\" Then
-        ' UNC path
-        pathParts = Split(strPath, "\")
-        currentPath = "\\" & pathParts(2) & "\" & pathParts(3)  ' \\server\share
-        i = 4
-    Else
-        ' Regular path
-        pathParts = Split(strPath, "\")
-        currentPath = pathParts(0)  ' Drive letter (C:)
-        i = 1
+    If Len(dirs(i)) > 0 Then
+     If i > 0 Then
+         newpath = newpath & "\" & dirs(i)
+        
+        Else
+          newpath = dirs(i)
+        End If
+   Debug.Print newpath
+   
+        If Not fso.FolderExists(newpath) Then
+         'If Dir(newpath, vbDirectory) = "" Then
+           fso.CreateFolder newpath
+            '' MkDir newpath
+        End If
     End If
     
-    ' Create each directory level
-    For i = i To UBound(pathParts)
-        If pathParts(i) <> "" Then
-            currentPath = currentPath & "\" & pathParts(i)
-            If Dir(currentPath, vbDirectory) = "" Then
-                MkDir currentPath
-            End If
-        End If
-    Next i
-    
-    On Error GoTo 0
+Next i
+
 End Sub
+
 
 ' Test function to verify the face capture system is working
 ' Usage: Call TestFaceCapture()

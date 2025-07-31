@@ -1,7 +1,0 @@
-setuptools
-wheel
-opencv-python
-numpy
-Pillow
-pyperclip
-pyinstaller
