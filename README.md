@@ -549,16 +549,23 @@ Public Function CaptureImageAndReturnPath(ByVal folderPath As String, ByVal file
     Dim commandLine As String
     Dim fullPhotoPath As String
     Dim shellObj As Object
+    Dim pythonExe As String
+    Dim localAppData As String
 
     ' Define paths
     projectPath = CStr(Application.CurrentProject.path) & "\scripts"
     scriptPath = projectPath & "\face.py"
-    photoFolder = IIf(Right(CStr(folderPath), 1) = "\", Left(CStr(folderPath), Len(CStr(folderPath)) - 1), CStr(folderPath))
-    photoFileName = CStr(fileName)
+    
+    ' Clean folder path: trim and remove any trailing backslashes to avoid quote escaping (\")
+    photoFolder = Trim(CStr(folderPath))
+    Do While Right(photoFolder, 1) = "\" Or Right(photoFolder, 1) = "/"
+        photoFolder = Left(photoFolder, Len(photoFolder) - 1)
+    Loop
+    
+    photoFileName = Trim(CStr(fileName))
     fullPhotoPath = photoFolder & "\" & photoFileName
     
-    
-     ' === VALIDATIONS ===
+    ' === VALIDATIONS ===
     If Dir(scriptPath) = "" Then
         MsgBox "Python script not found at: " & scriptPath, vbCritical
         CaptureImageAndReturnPath = ""
@@ -571,52 +578,35 @@ Public Function CaptureImageAndReturnPath(ByVal folderPath As String, ByVal file
         Exit Function
     End If
     
-    
     ' Create shell object
     Set shellObj = CreateObject("WScript.Shell")
 
-    ' Validate Python in system PATH
-    If shellObj.Run("cmd /c python --version", 0, True) <> 0 Then
-        MsgBox "Python is not available in system PATH.", vbCritical
-        CaptureImageAndReturnPath = ""
-        Exit Function
+    ' Dynamic Python detection (Direct executable path - avoids cmd /c quote-stripping issues)
+    localAppData = Environ("LOCALAPPDATA")
+    If Len(localAppData) > 0 And Dir(localAppData & "\Programs\Python\Python314\python.exe") <> "" Then
+        pythonExe = localAppData & "\Programs\Python\Python314\python.exe"
+    ElseIf Len(localAppData) > 0 And Dir(localAppData & "\Programs\Python\Python313\python.exe") <> "" Then
+        pythonExe = localAppData & "\Programs\Python\Python313\python.exe"
+    ElseIf Dir("C:\Windows\py.exe") <> "" Then
+        pythonExe = "C:\Windows\py.exe"
+    Else
+        pythonExe = "python"
     End If
 
-    ' Construct command to run the Python script
-    commandLine = "cmd /c python """ & scriptPath & """ """ & _
-                  photoFolder & """ """ & photoFileName & """ grayscale autoclose silent"
-    
-    ' Choose your command mode (uncomment one):
-    
-    ' MODE 1: BOTH COLOR AND GRAYSCALE (Interactive)
-    ' Saves both versions: filename_color.jpg and filename_gray.jpg
-    ' Application stays open for user interaction
-    ' commandLine = "cmd /c python """ & scriptPath & """ """ & _
-    '               photoFolder & """ """ & photoFileName & """
-    
-    ' MODE 2: GRAYSCALE ONLY (Recommended for MS Access)
-    ' Saves only grayscale version as specified filename
-    ' Automatically closes after capture
-    ' commandLine = "cmd /c python """ & scriptPath & """ """ & _
-    '               photoFolder & """ """ & photoFileName & """ grayscale"
-    
-    ' MODE 3: SILENT GRAYSCALE (Fully Automated) - CURRENT ACTIVE MODE
-    ' Saves only grayscale version, no message boxes, auto-closes
-    ' Best for batch processing and database integration
-'     commandLine = "cmd /c python """ & scriptPath & """ """ & _
-                  photoFolder & """ """ & photoFileName & """ grayscale autoclose silent"
+    ' Construct command line directly with executable (no cmd /c)
+    commandLine = """" & pythonExe & """ """ & scriptPath & """ """ & _
+                  photoFolder & """ """ & photoFileName & """ grayscale autoclose"
     
     ' Debug output
-    Debug.Print commandLine
+    Debug.Print "Executing: " & commandLine
 
-    ' Run the command (hidden window, wait for completion)
+    ' Run the command (0 = hidden background window so no black cmd window appears, True = wait for capture and auto-close)
     shellObj.Run commandLine, 0, True
 
     ' Check if file was created
     If Dir(fullPhotoPath) <> "" Then
         DoCmd.Beep
-        MsgBox "Image created successfully!", vbInformation
-        CaptureImageAndReturnPath = NormalizePath(folderPath & "\" & fileName)
+        CaptureImageAndReturnPath = fullPhotoPath
     Else
         MsgBox "Image not found at: " & fullPhotoPath, vbExclamation
         CaptureImageAndReturnPath = ""
